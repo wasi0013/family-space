@@ -17,6 +17,13 @@ describe('choosing the language', () => {
     expect(pickLang('en')).toBe('en');
     expect(pickLang('fr')).toBe('en');
   });
+
+  it('is Bengali on the /bn page', () => {
+    expect(pickLang(null, '/bn/')).toBe('bn');
+    expect(pickLang(null, '/bn')).toBe('bn');
+    expect(pickLang(null, '/')).toBe('en');
+    expect(pickLang(null, '/bnx')).toBe('en');
+  });
 });
 
 describe('English', () => {

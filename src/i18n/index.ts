@@ -8,9 +8,12 @@ const STRINGS: Record<Lang, Strings> = { en, bn };
 /** Earlier versions remembered the language here; it is now chosen only by the link. */
 const OLD_KEY = 'family-space:lang';
 
-/** Bengali only when the link asks for it with `?lang=bn`; English otherwise. */
-export function pickLang(param: string | null): Lang {
-  return param === 'bn' ? 'bn' : 'en';
+/**
+ * Bengali only when the link asks for it, at `/bn/` or with `?lang=bn`; English otherwise. The
+ * `/bn/` page carries Bengali link previews, which `?lang=bn` cannot.
+ */
+export function pickLang(param: string | null, path = '/'): Lang {
+  return param === 'bn' || /^\/bn(\/|$)/.test(path) ? 'bn' : 'en';
 }
 
 function readLang(): Lang {
@@ -20,7 +23,7 @@ function readLang(): Lang {
   } catch {
     // Storage is unavailable, so nothing was remembered.
   }
-  return pickLang(new URLSearchParams(window.location.search).get('lang'));
+  return pickLang(new URLSearchParams(window.location.search).get('lang'), window.location.pathname);
 }
 
 /** The language for this visit, set by the link. */
