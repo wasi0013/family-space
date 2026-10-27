@@ -45,6 +45,21 @@ interface Track {
   wobble: number;
   /** Where this person settles in the upper sky, for permanent people who have left. */
   slot: Point | null;
+  /** For people passing through: the single pass they make around your star. */
+  comet: Comet | null;
+}
+
+/**
+ * Someone passing through your life makes one pass around your star, as a comet does: in from
+ * the outer sky, a swing around you at its closest, and back out.
+ */
+interface Comet {
+  /** Closest approach, as a share of the innermost lane. */
+  closest: number;
+  /** Which way the closest point faces. */
+  heading: number;
+  /** 1 to swing anticlockwise, -1 clockwise. */
+  spin: number;
 }
 
 export interface Layout {
@@ -119,7 +134,8 @@ export function layoutScene(
     const rand = mulberry32(hashString(person.id));
     const phase = rand() * Math.PI * 2;
     const wobble = rand() * Math.PI * 2;
-    const earlier = byArrival.slice(0, byArrival.indexOf(person));
+    // Comets cross the orbits rather than holding one, so only permanent people take lanes.
+    const earlier = byArrival.slice(0, byArrival.indexOf(person)).filter((p) => p.bond === 'permanent');
     // Outer people turn a little slower, set by where they first settled.
     const settledAt = minRadius + laneGap * rankAt(earlier, person.joinAge + ARRIVE_YEARS);
     const period = INNER_REVOLUTION_S * (settledAt / minRadius) ** 0.6 * (0.9 + 0.2 * rand());
@@ -131,7 +147,11 @@ export function layoutScene(
             x: width * (0.12 + (0.76 * (m + 0.5)) / memorials.length) + (rand() - 0.5) * width * 0.03,
             y: skyTop + rowHeight * ((m % rows) + 0.5 + (rand() - 0.5) * 0.5),
           };
-    return { person, earlier, period, phase, wobble, slot };
+    const comet =
+      person.bond === 'temporary' && person.departAge !== null
+        ? { closest: 0.8 + 0.6 * rand(), heading: rand() * Math.PI * 2, spin: rand() < 0.5 ? -1 : 1 }
+        : null;
+    return { person, earlier, period, phase, wobble, slot, comet };
   });
 
   return { cx, cy, tilt, minRadius, outerRadius, laneGap, reach: Math.hypot(width, height) * 0.4, tracks };
@@ -152,13 +172,14 @@ function rankAt(earlier: readonly Person[], age: number): number {
   return rank;
 }
 
-/** The most people orbiting at once at any point in the life. */
+/** The most people orbiting at once at any point in the life; comets passing through don't count. */
 function peakPresence(people: readonly Person[]): number {
-  const lastAge = Math.max(0, ...people.map((p) => (p.departAge ?? p.joinAge) + CLOSE_RANKS_YEARS));
+  const orbiting = people.filter((p) => p.bond === 'permanent');
+  const lastAge = Math.max(0, ...orbiting.map((p) => (p.departAge ?? p.joinAge) + CLOSE_RANKS_YEARS));
   let peak = 1;
   for (let age = 0; age <= lastAge; age += 0.25) {
     let count = 0;
-    for (const person of people) count += presence(person, age);
+    for (const person of orbiting) count += presence(person, age);
     peak = Math.max(peak, count);
   }
   return Math.ceil(peak - 0.01);
@@ -210,6 +231,8 @@ function frameBody(
   const angleAt = (a: number) => track.phase + ((a / YEARS_PER_SECOND + idleSeconds) / track.period) * Math.PI * 2;
   const depart = person.departAge;
 
+  if (track.comet && depart !== null && age < depart) return cometFrame(layout, track, track.comet, age, reshape);
+
   if (depart === null || age < depart) {
     // Arriving bodies spiral in from a wider orbit as they fade up.
     const e = easeOutCubic(clamp01((age - person.joinAge) / ARRIVE_YEARS));
@@ -243,13 +266,14 @@ function frameBody(
 
   const since = age - depart;
   const theta = angleAt(depart);
-  const origin = orbitPoint(layout, reshape(laneRadius(layout, track, depart), depart), theta);
+  const pass = track.comet && cometPass(layout, track.comet, track.person, depart, reshape);
+  const origin = pass ? pass.pos : orbitPoint(layout, reshape(laneRadius(layout, track, depart), depart), theta);
 
   if (person.bond === 'temporary') {
     if (since >= SHOOT_YEARS) return null;
-    // Break away along the orbit's tangent and accelerate off into the dark.
-    let tx = -Math.sin(theta);
-    let ty = layout.tilt * Math.cos(theta);
+    // Break away along the way they were heading, and accelerate off into the dark.
+    let tx = pass ? pass.heading.x : -Math.sin(theta);
+    let ty = pass ? pass.heading.y : layout.tilt * Math.cos(theta);
     const length = Math.hypot(tx, ty);
     tx /= length;
     ty /= length;
@@ -301,6 +325,108 @@ function frameBody(
     trailAlpha: settled ? 1 - clamp01((since - ASCEND_YEARS) / THREAD_FADE_YEARS) : 1,
     orbitRadius: null,
     memorial: true,
+  };
+}
+
+/** How open the comet's path is: above 1 it never comes back, like a comet passing once. */
+const COMET_ECCENTRICITY = 1.35;
+/** How far out a comet comes in from, and has reached when it leaves, as shares of the sky's reach. */
+const COMET_FROM = 0.95;
+const COMET_TO = 0.55;
+/** How much of the pass is spent swinging close by, against rushing in and out at its ends. */
+const COMET_LINGER = 0.4;
+const COMET_TAIL_POINTS = 24;
+
+interface Pass {
+  pos: Point;
+  /** Which way it is moving, on screen. */
+  heading: Point;
+  /** Distance from your star in the orbits' plane. */
+  distance: number;
+  closest: number;
+  angle: number;
+}
+
+/**
+ * Where a comet is on its pass at `age`. Its path is a hyperbola around your star; the pass is
+ * timed so the far ends go quickly and most of the stay is the swing close by.
+ */
+function cometPass(
+  layout: Layout,
+  comet: Comet,
+  person: Person,
+  age: number,
+  reshape: (radius: number, age: number) => number,
+): Pass {
+  const e = COMET_ECCENTRICITY;
+  const closest = reshape(layout.minRadius * comet.closest, age);
+  const semi = closest * (1 + e);
+  const reachTo = (r: number) => Math.acos(Math.min(1, Math.max(-1, (semi / r - 1) / e)));
+  const into = reachTo(layout.reach * COMET_FROM);
+  const outTo = reachTo(layout.reach * COMET_TO);
+  const span = person.departAge! - person.joinAge;
+  const x = 2 * clamp01((age - person.joinAge) / Math.max(0.01, span)) - 1;
+  const warp = Math.sign(x) * (COMET_LINGER * Math.abs(x) + (1 - COMET_LINGER) * Math.abs(x) ** 3);
+  const at = (nu: number) => {
+    const r = semi / (1 + e * Math.cos(nu));
+    const angle = comet.heading + comet.spin * nu;
+    return { r, angle, pos: { x: layout.cx + r * Math.cos(angle), y: layout.cy + r * layout.tilt * Math.sin(angle) } };
+  };
+  const nu = warp < 0 ? warp * into : warp * outTo;
+  const here = at(nu);
+  const ahead = at(nu + 0.01);
+  return {
+    pos: here.pos,
+    heading: { x: ahead.pos.x - here.pos.x, y: ahead.pos.y - here.pos.y },
+    distance: here.r,
+    closest,
+    angle: here.angle,
+  };
+}
+
+function cometFrame(
+  layout: Layout,
+  track: Track,
+  comet: Comet,
+  age: number,
+  reshape: (radius: number, age: number) => number,
+): BodyFrame {
+  const { person } = track;
+  const pass = cometPass(layout, comet, person, age, reshape);
+  const { pos } = pass;
+  const appear = smoothstep(0, Math.min(ARRIVE_YEARS, (person.departAge! - person.joinAge) * 0.15), age - person.joinAge);
+  const depth = Math.sin(pass.angle);
+  const near = (depth + 1) / 2;
+
+  // The tail streams straight away from your star, longest as it swings closest, and curves a
+  // little back along the way it came.
+  const away = { x: pos.x - layout.cx, y: pos.y - layout.cy };
+  const awayLength = Math.hypot(away.x, away.y) || 1;
+  const back = { x: -pass.heading.x, y: -pass.heading.y };
+  const backLength = Math.hypot(back.x, back.y) || 1;
+  const tail = 24 + 96 * (pass.closest / pass.distance) ** 1.2;
+  const trail: Point[] = [];
+  for (let k = 0; k <= COMET_TAIL_POINTS; k++) {
+    const f = 1 - k / COMET_TAIL_POINTS;
+    trail.push({
+      x: pos.x + (away.x / awayLength) * tail * f + (back.x / backLength) * tail * 0.45 * f * f,
+      y: pos.y + (away.y / awayLength) * tail * f + (back.y / backLength) * tail * 0.45 * f * f,
+    });
+  }
+  const washout = glare(layout, pos, depth);
+  return {
+    person,
+    ...pos,
+    scale: 0.8 + 0.2 * near,
+    alpha: appear * (0.6 + 0.4 * near) * washout,
+    labelAlpha: appear * (0.55 + 0.45 * near) * washout,
+    depth,
+    glow: 0,
+    trail,
+    trailKind: 'orbit',
+    trailAlpha: appear,
+    orbitRadius: null,
+    memorial: false,
   };
 }
 

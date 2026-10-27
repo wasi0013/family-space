@@ -176,6 +176,56 @@ describe('departures', () => {
   });
 });
 
+describe('people passing through', () => {
+  const sam = person('sam', 'temporary', 10, 20);
+  const mom = person('mom', 'permanent', 0, null);
+  const distance = (scene: Layout, age: number) => {
+    const f = frameOf(scene, 'sam', age)!;
+    return Math.hypot(f.x - scene.cx, (f.y - scene.cy) / scene.tilt);
+  };
+
+  it('pass by once like a comet: in from far away, close in the middle, out again', () => {
+    const scene = layout([mom, sam]);
+    const start = distance(scene, 10);
+    const middle = distance(scene, 15);
+    const end = distance(scene, 20 - 1e-6);
+    expect(start).toBeGreaterThan(scene.reach * 0.9);
+    expect(middle).toBeLessThan(scene.minRadius * 1.5);
+    expect(end).toBeGreaterThan(scene.reach * 0.5);
+    expect(end).toBeLessThan(start);
+  });
+
+  it('spend most of their stay swinging close by', () => {
+    const scene = layout([mom, sam]);
+    const close = Array.from({ length: 101 }, (_, i) => distance(scene, 10 + i / 10)).filter((d) => d < scene.reach * 0.4);
+    expect(close.length).toBeGreaterThan(50);
+  });
+
+  it('never take an orbit, so permanent people keep theirs', () => {
+    const withComet = layout([sam, person('leo', 'permanent', 12, null)]);
+    expect(frameOf(withComet, 'leo', 15)!.orbitRadius).toBeCloseTo(withComet.minRadius, 6);
+    expect(frameOf(withComet, 'sam', 15)!.orbitRadius).toBeNull();
+  });
+
+  it('carry a tail that points away from your star', () => {
+    const scene = layout([sam]);
+    const f = frameOf(scene, 'sam', 15)!;
+    const tailEnd = f.trail[0];
+    const fromStar = Math.hypot(f.x - scene.cx, f.y - scene.cy);
+    expect(Math.hypot(tailEnd.x - scene.cx, tailEnd.y - scene.cy)).toBeGreaterThan(fromStar);
+  });
+
+  it('move smoothly along their pass', () => {
+    const scene = layout([sam]);
+    let previous = frameOf(scene, 'sam', 10.5)!;
+    for (let age = 10.51; age < 19.5; age += 0.01) {
+      const f = frameOf(scene, 'sam', age)!;
+      expect(Math.hypot(f.x - previous.x, f.y - previous.y)).toBeLessThan(8);
+      previous = f;
+    }
+  });
+});
+
 describe('samplePeople', () => {
   it('names the sample family in Bengali without moving anyone in the sky', () => {
     const english = samplePeople(32, 'crowd');
