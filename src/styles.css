@@ -244,6 +244,231 @@ body,
   background: rgba(160, 180, 255, 0.12);
 }
 
+/* ---------- People ---------- */
+
+.people-screen {
+  /* Center while it fits; scroll from the top once the list grows taller than the screen. */
+  align-content: safe center;
+  overflow-y: auto;
+}
+
+.people {
+  width: min(100%, 620px);
+  padding: 24px 0;
+}
+
+.people-lede {
+  margin: 14px 0 0;
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 300;
+  font-size: clamp(1.05rem, 2.2vw, 1.3rem);
+  color: var(--ink-soft);
+}
+
+.facts {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  margin-top: 26px;
+}
+
+.fact {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.fact-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fact-label {
+  margin-right: 4px;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.choice {
+  position: relative;
+  padding: 7px 14px 8px;
+  border: 1px solid rgba(200, 212, 255, 0.18);
+  border-radius: 999px;
+  font: italic 300 1.1rem/1 var(--font-display);
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition:
+    color 0.25s ease,
+    border-color 0.25s ease,
+    background 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+.choice input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.choice:hover {
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+.choice.is-checked {
+  color: #fff6e8;
+  border-color: rgba(214, 224, 255, 0.6);
+  background: rgba(160, 180, 255, 0.12);
+  box-shadow: 0 0 18px rgba(150, 172, 255, 0.18);
+}
+
+.choice:has(:focus-visible) {
+  outline: 1px solid rgba(214, 224, 255, 0.7);
+  outline-offset: 3px;
+}
+
+.age-input {
+  width: 2.6em;
+  padding: 4px 2px 6px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+  font: 300 1.25rem/1 var(--font-display);
+  text-align: center;
+  color: var(--ink);
+  caret-color: #c9d4ff;
+  animation: rise-in 0.4s var(--ease-out) both;
+}
+
+.age-input::placeholder {
+  color: rgba(214, 222, 255, 0.25);
+}
+
+.age-input:focus {
+  outline: none;
+  border-bottom-color: rgba(214, 224, 255, 0.75);
+}
+
+.people-hint {
+  min-height: 1.4em;
+  margin: 18px 0 0;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  color: var(--ink-faint);
+}
+
+.people-hint.is-error {
+  color: var(--error);
+}
+
+.people-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+
+.people-actions .continue {
+  margin-top: 10px;
+}
+
+.continue.is-primary {
+  border-color: rgba(255, 207, 138, 0.45);
+  background: rgba(255, 207, 138, 0.1);
+  color: #fff3df;
+}
+
+.continue.is-primary:hover,
+.continue.is-primary:focus-visible {
+  border-color: rgba(255, 214, 160, 0.8);
+  background: rgba(255, 207, 138, 0.18);
+}
+
+.people-list {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin: 30px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.person-chip {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid rgba(200, 212, 255, 0.16);
+  border-radius: 999px;
+  background: rgba(160, 180, 255, 0.04);
+  animation: rise-in 0.6s var(--ease-out) both;
+  transition: border-color 0.25s ease;
+}
+
+.person-chip.is-editing {
+  border-color: rgba(214, 224, 255, 0.65);
+}
+
+.person-edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 4px 7px 12px;
+  border: 0;
+  background: none;
+  font: 500 13px/1 var(--font-ui);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.person-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--person-color);
+  box-shadow:
+    0 0 10px var(--person-color),
+    0 0 2px #fff;
+}
+
+.person-span {
+  font-size: 11px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-faint);
+}
+
+.person-remove {
+  width: 26px;
+  height: 26px;
+  margin-right: 3px;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  font: 300 16px/1 var(--font-ui);
+  color: var(--ink-faint);
+  cursor: pointer;
+}
+
+.person-edit:focus-visible,
+.person-remove:focus-visible {
+  outline: 1px solid rgba(214, 224, 255, 0.7);
+  outline-offset: 1px;
+  border-radius: 999px;
+}
+
+.person-remove:hover {
+  color: var(--ink);
+  background: rgba(160, 180, 255, 0.1);
+}
+
 /* ---------- Scene ---------- */
 
 .scene {

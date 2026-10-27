@@ -28,7 +28,13 @@ function validate(id: keyof Answers, value: string): string {
   return Number.isInteger(age) && age >= 1 && age <= 120 ? '' : 'Enter an age between 1 and 120.';
 }
 
-export function Onboarding({ onComplete }: { onComplete: (profile: Profile) => void }) {
+interface OnboardingProps {
+  /** Steps in the whole flow, when more follow these questions. */
+  totalSteps?: number;
+  onComplete: (profile: Profile) => void;
+}
+
+export function Onboarding({ totalSteps = STEPS.length, onComplete }: OnboardingProps) {
   const [stepIndex, setStepIndex] = useState(0);
   const [answers, setAnswers] = useState<Answers>({ name: '', age: '' });
   const [error, setError] = useState('');
@@ -52,7 +58,7 @@ export function Onboarding({ onComplete }: { onComplete: (profile: Profile) => v
     <section className="onboarding">
       <form key={step.id} className="question" onSubmit={submit} noValidate>
         <p className="question-count">
-          {stepIndex + 1} / {STEPS.length}
+          {stepIndex + 1} / {totalSteps}
         </p>
         <label className="question-text" htmlFor={`answer-${step.id}`}>
           {step.question}
