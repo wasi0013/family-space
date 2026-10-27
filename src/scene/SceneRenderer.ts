@@ -40,7 +40,14 @@ import {
 import { drawSelfStar, ignition, SETTLED, type Ignition } from './selfStar';
 import { stageAt, type StarStage } from './stellar';
 
-const MAX_DPR = 3;
+/** Beyond 2× the extra pixels cost far more than they show, in stars that are soft glows anyway. */
+const MAX_DPR = 2;
+/** Between frames while the years move, in milliseconds: at most 60 a second, even on faster screens. */
+const MOVING_FRAME_MS = 1000 / 60;
+/** Between frames while nothing but twinkling moves, in milliseconds: about 30 a second. */
+const IDLE_FRAME_MS = 1000 / 30;
+/** How long the self star takes to ignite, in seconds. */
+const IGNITE_S = 3;
 /** Holding a skip button sweeps through the years this many times faster than playing. */
 const SCAN_SPEED = 2;
 /** Going back within this many years of a moment's start passes it, to the moment before. */
@@ -332,10 +339,16 @@ export class SceneRenderer {
     }
     this.lastNow = -1;
     const tick = (now: number) => {
-      const dt = this.lastNow < 0 ? 0 : Math.min(0.1, (now - this.lastNow) / 1000);
-      this.lastNow = now;
+      this.frameId = requestAnimationFrame(tick);
       if (this.igniteStart < 0) this.igniteStart = now;
       const sinceIgnite = (now - this.igniteStart) / 1000;
+      // Full speed only while the years are moving; a still sky only twinkles and drifts, and
+      // half the frames are plenty for that.
+      const moving = this.playing || this.autoplay || this.scanDirection !== 0 || (this.igniting && sinceIgnite < IGNITE_S);
+      // 120 Hz screens would otherwise draw twice as often for motion no smoother to the eye.
+      if (this.lastNow >= 0 && now - this.lastNow < (moving ? MOVING_FRAME_MS - 2 : IDLE_FRAME_MS - 1)) return;
+      const dt = this.lastNow < 0 ? 0 : Math.min(0.1, (now - this.lastNow) / 1000);
+      this.lastNow = now;
       if (this.autoplay && sinceIgnite >= PLAY_DELAY_S) {
         this.autoplay = false;
         this.playing = true;
@@ -343,7 +356,6 @@ export class SceneRenderer {
       this.advance(dt);
       const ig = this.igniting ? ignition(sinceIgnite) : SETTLED;
       this.draw(now / 1000, ig);
-      this.frameId = requestAnimationFrame(tick);
     };
     this.frameId = requestAnimationFrame(tick);
   };

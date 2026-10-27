@@ -11,7 +11,17 @@ import {
 } from './starfield';
 
 const RESIZE_DEBOUNCE_MS = 150;
-const MAX_DPR = 3;
+/** Beyond 2× the extra pixels cost far more than they show, in stars that are soft points of light. */
+const MAX_DPR = 2;
+/**
+ * The sky only drifts and twinkles slowly, so about 30 frames a second look the same as 60 and
+ * cost half as much.
+ */
+const FRAME_MS = 1000 / 30;
+/** While the sky is nearly still (a slow drift, or none), 15 frames a second are enough. */
+const STILL_FRAME_MS = 1000 / 15;
+/** Drifting slower than this, in CSS pixels a second, counts as nearly still. */
+const SLOW_DRIFT = 8;
 /** Field stars this close to an edge are also drawn wrapped, so halos never clip at a seam. */
 const WRAP_MARGIN = 16;
 /** Brighter field stars read as nearer, so they drift faster than the faint ones. */
@@ -40,6 +50,10 @@ export class SkyRenderer {
   private readonly nearLayer = document.createElement('canvas');
   private readonly farLayer = document.createElement('canvas');
   private readonly overlayLayer = document.createElement('canvas');
+  /** The steady part of the sky as last painted, reused while the sky holds still. */
+  private readonly stillLayer = document.createElement('canvas');
+  private stillKey = '';
+  private lastKey = '';
   private readonly sprites = makeStarSprites(STAR_TINTS.map((t) => t.color));
   private readonly motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
   private readonly resizeObserver = new ResizeObserver(() => this.scheduleResize());
@@ -85,9 +99,19 @@ export class SkyRenderer {
       return;
     }
     skyScroll.redraw = null;
+    let last = -Infinity;
+    let lastY = skyScroll.y;
+    let lastAngle = skyScroll.angle;
     const tick = (now: number) => {
-      this.draw(now / 1000);
       this.frameId = requestAnimationFrame(tick);
+      const elapsed = now - last;
+      const drift = Math.abs(skyScroll.y - lastY) / Math.max(0.001, elapsed / 1000);
+      const still = drift < SLOW_DRIFT && skyScroll.angle === lastAngle;
+      if (elapsed < (still ? STILL_FRAME_MS : FRAME_MS) - 1) return;
+      last = now;
+      lastY = skyScroll.y;
+      lastAngle = skyScroll.angle;
+      this.draw(now / 1000);
     };
     this.frameId = requestAnimationFrame(tick);
   };
@@ -113,7 +137,8 @@ export class SkyRenderer {
     this.height = height;
     this.dpr = dpr;
 
-    for (const canvas of [this.canvas, this.baseLayer, this.nearLayer, this.farLayer, this.overlayLayer]) {
+    this.stillKey = this.lastKey = '';
+    for (const canvas of [this.canvas, this.baseLayer, this.nearLayer, this.farLayer, this.overlayLayer, this.stillLayer]) {
       canvas.width = Math.round(width * dpr);
       canvas.height = Math.round(height * dpr);
     }
@@ -187,17 +212,54 @@ export class SkyRenderer {
     };
   }
 
-  /** Each tile of a field layer, in its turned frame, that can show on screen. */
+  /**
+   * Each tile of a field layer, in its turned frame, that can show on screen: those covering the
+   * screen as seen from that frame, which is the screen itself until the sky has turned.
+   */
   private tiles(offset: { x: number; y: number }): { x: number; y: number }[] {
-    const { width, height, reach } = this;
+    const { width, height } = this;
     const pivot = this.pivot();
+    const cos = Math.cos(skyScroll.angle);
+    const sin = Math.sin(skyScroll.angle);
+    // The screen's corners, turned back into the sky's frame.
+    const corners = [[0, 0], [width, 0], [0, height], [width, height]].map(([x, y]) => ({
+      x: pivot.x + (x - pivot.x) * cos + (y - pivot.y) * sin,
+      y: pivot.y - (x - pivot.x) * sin + (y - pivot.y) * cos,
+    }));
+    const left = Math.min(...corners.map((c) => c.x)) - WRAP_MARGIN;
+    const right = Math.max(...corners.map((c) => c.x)) + WRAP_MARGIN;
+    const top = Math.min(...corners.map((c) => c.y)) - WRAP_MARGIN;
+    const bottom = Math.max(...corners.map((c) => c.y)) + WRAP_MARGIN;
     const tiles = [];
-    for (let i = Math.floor((pivot.x - reach - offset.x) / width); i * width + offset.x < pivot.x + reach; i++) {
-      for (let j = Math.floor((pivot.y - reach - offset.y) / height); j * height + offset.y < pivot.y + reach; j++) {
+    for (let i = Math.floor((left - offset.x) / width); i * width + offset.x < right; i++) {
+      for (let j = Math.floor((top - offset.y) / height); j * height + offset.y < bottom; j++) {
         tiles.push({ x: offset.x + i * width, y: offset.y + j * height });
       }
     }
     return tiles;
+  }
+
+  /** The sky's steady part: the horizon, then the Milky Way and the field stars, turned and drifted. */
+  private paintSteady(ctx: CanvasRenderingContext2D, near: { x: number; y: number }, far: { x: number; y: number }) {
+    const { dpr, width, height } = this;
+    const pivot = this.pivot();
+    const cos = Math.cos(skyScroll.angle);
+    const sin = Math.sin(skyScroll.angle);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 1;
+    ctx.drawImage(this.baseLayer, 0, 0);
+
+    // Everything above the horizon turns together around your star.
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.setTransform(dpr * cos, dpr * sin, -dpr * sin, dpr * cos, dpr * pivot.x, dpr * pivot.y);
+    ctx.drawImage(this.bandLayer, -this.reach, -this.reach, this.reach * 2, this.reach * 2);
+    for (const [layer, offset] of [
+      [this.farLayer, far],
+      [this.nearLayer, near],
+    ] as const) {
+      for (const tile of this.tiles(offset)) ctx.drawImage(layer, tile.x - pivot.x, tile.y - pivot.y, width, height);
+    }
   }
 
   private draw(seconds: number) {
@@ -213,24 +275,26 @@ export class SkyRenderer {
     });
     const onScreen = (p: { x: number; y: number }) => p.x > -8 && p.y > -8 && p.x < width + 8 && p.y < height + 8;
 
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.globalAlpha = 1;
-    ctx.drawImage(this.baseLayer, 0, 0);
-
-    // Everything above the horizon turns together around your star.
-    ctx.globalCompositeOperation = 'lighter';
-    ctx.setTransform(dpr * cos, dpr * sin, -dpr * sin, dpr * cos, dpr * pivot.x, dpr * pivot.y);
-    ctx.drawImage(this.bandLayer, -this.reach, -this.reach, this.reach * 2, this.reach * 2);
     const near = this.offset(1);
     const far = this.offset(FAR_PARALLAX);
-    for (const [layer, offset] of [
-      [this.farLayer, far],
-      [this.nearLayer, near],
-    ] as const) {
-      for (const tile of this.tiles(offset)) ctx.drawImage(layer, tile.x - pivot.x, tile.y - pivot.y, width, height);
+    // While the sky hasn't moved since the last frame its steady stars are reused, painted once;
+    // while it moves they are painted straight onto the screen, as reusing them would cost more.
+    const key = [angle, near.x, near.y, far.x, far.y].join('|');
+    if (key === this.lastKey) {
+      if (key !== this.stillKey) {
+        this.paintSteady(this.stillLayer.getContext('2d', { alpha: false })!, near, far);
+        this.stillKey = key;
+      }
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.globalAlpha = 1;
+      ctx.drawImage(this.stillLayer, 0, 0);
+    } else {
+      this.paintSteady(ctx, near, far);
     }
+    this.lastKey = key;
 
+    ctx.globalCompositeOperation = 'lighter';
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     for (const star of this.fieldTwinklers) {
       const dim = star.twinkle.amp * scintillation(star.twinkle, seconds);
