@@ -3,26 +3,20 @@ import type { Moment } from '../model';
 import {
   ageX,
   captionAt,
-  layoutConstellation,
   layoutLifeline,
   lifelineMoments,
-  litMoments,
-  momentPoint,
   momentProgress,
   momentsSettleAge,
   MOMENT_YEARS,
   placeSkyMoments,
   playbackSpeed,
   RISE_YEARS,
-  SPARK_YEARS,
-  usesLifeline,
 } from './momentSky';
 
 const moved: Moment = { id: 'a', title: 'Moved to Dhaka', age: 13, kind: 'home' };
 const graduated: Moment = { id: 'b', title: 'Graduated', age: 22, kind: 'milestone' };
 const married: Moment = { id: 'c', title: 'Married', age: 26, kind: 'love' };
 const moments = [graduated, moved, married];
-const constellation = layoutConstellation(1440, 900, 600, 32);
 
 describe('playback around moments', () => {
   it('runs at full speed away from any moment', () => {
@@ -71,43 +65,15 @@ describe('moment timing', () => {
   });
 });
 
-describe('constellation', () => {
-  it('runs from birth at the left to today at the right', () => {
-    expect(ageX(constellation, 0)).toBeCloseTo(1440 * 0.08, 6);
-    expect(ageX(constellation, 32)).toBeCloseTo(1440 * 0.92, 6);
-  });
-
-  it('keeps each moment’s star in place when others are added', () => {
-    const alone = momentPoint(constellation, graduated);
-    const withOthers = litMoments(constellation, moments, 30).find((p) => p.moment === graduated)!;
-    expect(withOthers.x).toBeCloseTo(alone.x, 6);
-    expect(withOthers.y).toBeCloseTo(alone.y, 6);
-  });
-
-  it('lights stars in order as their moments arrive', () => {
-    expect(litMoments(constellation, moments, 20).map((p) => p.moment.title)).toEqual(['Moved to Dhaka']);
-    expect(litMoments(constellation, moments, 30).map((p) => p.moment.title)).toEqual(['Moved to Dhaka', 'Graduated', 'Married']);
-  });
-
-  it('lights a milestone only once its spark has landed', () => {
-    expect(litMoments(constellation, [graduated], 22 + SPARK_YEARS - 0.01)).toHaveLength(0);
-    expect(litMoments(constellation, [graduated], 22 + SPARK_YEARS + 0.01)).toHaveLength(1);
-  });
-
-  it('stays between the solar system and the age readout', () => {
-    expect(constellation.mid - constellation.wander).toBeGreaterThan(600);
-    expect(constellation.mid + constellation.wander).toBeLessThan(900 - 200);
-  });
-});
-
-describe('the lifeline on narrow screens', () => {
+describe('the lifeline', () => {
   const line = layoutLifeline(390, 714, 32);
   const departed = { left: 220, right: 290, top: 120, bottom: 160 };
   const stars = placeSkyMoments(line, moments, 90, 240, [departed]);
 
-  it('takes over from the constellation only on phone widths', () => {
-    expect(usesLifeline(390)).toBe(true);
-    expect(usesLifeline(1440)).toBe(false);
+  it('keeps a comfortable span on wide screens, centred', () => {
+    const wide = layoutLifeline(1920, 1080, 32);
+    expect(wide.right - wide.left).toBe(1000);
+    expect(wide.left).toBe(460);
   });
 
   it('runs above the age readout, birth to today across the screen', () => {

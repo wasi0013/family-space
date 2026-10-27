@@ -1,7 +1,7 @@
 /** How each kind of moment changes the sky while it plays, as pure functions of age. */
 import type { Moment, Person } from '../model';
-import { MOMENT_YEARS, SPARK_YEARS } from './momentSky';
-import { ASCEND_YEARS, clamp01, type Point } from './orbits';
+import { MOMENT_YEARS } from './momentSky';
+import { ASCEND_YEARS, clamp01 } from './orbits';
 import { glowDisc } from './selfStar';
 
 /** How much closer the people orbiting you come during a hard time, as a share of their lane. */
@@ -27,13 +27,6 @@ export function flareAt(moments: readonly Moment[], age: number): Flare | null {
   return strongest;
 }
 
-/** Where a milestone's spark is on its way down to the constellation, 0 → 1, or null. */
-export function sparkProgress(moment: Moment, age: number): number | null {
-  if (moment.kind !== 'milestone') return null;
-  const t = (age - moment.age) / SPARK_YEARS;
-  return t > 0 && t < 1 ? t : null;
-}
-
 /** How deep a hard time is at `age`, 0 → 1: it settles in, holds, and lifts. */
 export function hardshipDepth(moments: readonly Moment[], age: number): number {
   let depth = 0;
@@ -44,37 +37,6 @@ export function hardshipDepth(moments: readonly Moment[], age: number): number {
     depth = Math.max(depth, smoothstep(0, 0.3, t) * (1 - smoothstep(end - 0.4, end, t)));
   }
   return depth;
-}
-
-/** A spark of light carried from your star down to the milestone's place in the constellation. */
-export function drawSpark(ctx: CanvasRenderingContext2D, from: Point, to: Point, progress: number) {
-  const control = { x: from.x + (to.x - from.x) * 0.35 + 60, y: (from.y + to.y) / 2 };
-  const at = (u: number): Point => {
-    const s = 1 - u;
-    return { x: s * s * from.x + 2 * s * u * control.x + u * u * to.x, y: s * s * from.y + 2 * s * u * control.y + u * u * to.y };
-  };
-  const u = 1 - (1 - progress) ** 2;
-  const head = at(u);
-  ctx.save();
-  ctx.globalCompositeOperation = 'lighter';
-  ctx.lineCap = 'round';
-  const steps = 18;
-  for (let k = 0; k < steps; k++) {
-    const a = at(Math.max(0, u - 0.28 * (1 - k / steps)));
-    const b = at(Math.max(0, u - 0.28 * (1 - (k + 1) / steps)));
-    ctx.strokeStyle = `rgba(255, 232, 196, ${0.7 * ((k + 1) / steps) ** 2})`;
-    ctx.lineWidth = 1.6;
-    ctx.beginPath();
-    ctx.moveTo(a.x, a.y);
-    ctx.lineTo(b.x, b.y);
-    ctx.stroke();
-  }
-  glowDisc(ctx, head.x, head.y, 12, [
-    [0, 'rgba(255, 240, 215, 0.8)'],
-    [0.3, 'rgba(255, 220, 170, 0.25)'],
-    [1, 'rgba(255, 210, 160, 0)'],
-  ]);
-  ctx.restore();
 }
 
 /** A shadow passing over your star in a hard time: it erases part of the star's light. */
@@ -221,12 +183,14 @@ export function novaProgress(person: Person, age: number): number | null {
   return t >= 0 && t <= 1 ? t : null;
 }
 
-/** How long a nova's nebula takes to fade away completely, in years after the burst. */
-export const REMNANT_YEARS = 20;
+/** How long a nova's nebula lingers once it has formed, before it is gone completely. */
+const REMNANT_LINGER_YEARS = 3;
+/** When the nebula has faded away completely, in years after the burst. */
+export const REMNANT_YEARS = NOVA_YEARS + REMNANT_LINGER_YEARS;
 
 /**
- * How visible a nova's remnant nebula is, 0 → 1: it forms as the burst ends, then thins slowly
- * over the years until it is gone, leaving only their star.
+ * How visible a nova's remnant nebula is, 0 → 1: it forms as the burst ends, then thins over
+ * the next few years until it is gone, leaving only their star.
  */
 export function remnantAt(person: Person, age: number): number {
   if (person.bond !== 'permanent' || person.departAge === null) return 0;
@@ -263,7 +227,7 @@ export function drawNova(
     ] as const) {
       const shell = ctx.createRadialGradient(x + dx, y + dy, r * scale * 0.55, x + dx, y + dy, r * scale);
       shell.addColorStop(0, `rgba(${rgb}, 0)`);
-      shell.addColorStop(0.6, `rgba(${rgb}, ${0.09 * remnant * strength})`);
+      shell.addColorStop(0.6, `rgba(${rgb}, ${0.05 * remnant * strength})`);
       shell.addColorStop(1, `rgba(${rgb}, 0)`);
       ctx.fillStyle = shell;
       ctx.fillRect(x - r * 1.2, y - r * 1.2, r * 2.4, r * 2.4);

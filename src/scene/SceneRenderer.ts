@@ -1,7 +1,6 @@
 import type { Moment, Person, Profile } from '../model';
 import { skyScroll } from '../sky/skyScroll';
 import { drawBody, drawFocus, drawLabels, drawOrbitPath, drawTrail } from './bodies';
-import { drawConstellation } from './constellation';
 import { drawLifeline, drawSkyMoments } from './lifeline';
 import {
   auroraStrength,
@@ -9,7 +8,6 @@ import {
   drawLoveGlow,
   drawShadow,
   drawNova,
-  drawSpark,
   griefAt,
   flareAt,
   HARDSHIP_PULL,
@@ -18,25 +16,17 @@ import {
   novaProgress,
   remnantAt,
   skyAngle,
-  sparkProgress,
 } from './phenomena';
 import {
   captionAt,
-  layoutConstellation,
   layoutLifeline,
   lifelineMoments,
-  litMoments,
-  momentPoint,
   momentsSettleAge,
-  nowPoint,
   placeSkyMoments,
   playbackSpeed,
-  usesLifeline,
   type Box,
-  type Constellation,
   type Lifeline,
   type LifelineMoment,
-  type MomentPoint,
 } from './momentSky';
 import {
   COMPACT_WIDTH,
@@ -56,9 +46,7 @@ const TIMELINE_SLOP = 26;
 /** How close a tap must land to a person to pick them, in CSS pixels. */
 const HIT_RADIUS = 24;
 /** Vertical position of the person's star as a fraction of the viewport; leaves the upper sky open. */
-export const SELF_Y = 0.56;
-/** With a lifeline below, the system rises a little to leave it room above the age. */
-const LIFELINE_SELF_Y = 0.5;
+export const SELF_Y = 0.5;
 /** On the smallest phones a little higher still, so the system can be large enough to read. */
 const COMPACT_SELF_Y = 0.47;
 const LIFELINE_CLEARANCE = 236;
@@ -105,7 +93,6 @@ export class SceneRenderer {
   /** Playback runs a little past the current age so recent departures and moments can finish. */
   private readonly endAge: number;
   private layout: Layout | null = null;
-  private constellation: Constellation | null = null;
   private width = 0;
   private height = 0;
   private dpr = 1;
@@ -124,8 +111,7 @@ export class SceneRenderer {
   private shownPlaying: boolean | null = null;
   /** Everyone as last drawn, for finding who was tapped. */
   private lastFrames: BodyFrame[] = [];
-  private lastPoints: MomentPoint[] = [];
-  /** On narrow screens: the lifeline, where each moment's star sits in the sky, and both as last drawn. */
+  /** The lifeline, where each moment's star sits in the sky, and both as last drawn. */
   private lifeline: Lifeline | null = null;
   private skyStars = new Map<string, { x: number; y: number }>();
   private lastShown: LifelineMoment[] = [];
@@ -241,62 +227,39 @@ export class SceneRenderer {
 
   /** The moment star drawn nearest a point on screen, if a tap there would pick it. */
   momentAt(x: number, y: number): { moment: Moment; x: number; y: number } | null {
-    if (this.lifeline) {
-      let found: { moment: Moment; x: number; y: number } | null = null;
-      let foundDistance = HIT_RADIUS;
-      for (const shown of this.lastShown) {
-        for (const [point, lit] of [
-          [shown.star, shown.starLit],
-          [shown.bead, shown.beadLit],
-        ] as const) {
-          const distance = Math.hypot(point.x - x, point.y - y);
-          if (lit > 0.25 && distance < foundDistance) {
-            found = { moment: shown.moment, x: point.x, y: point.y };
-            foundDistance = distance;
-          }
+    // Either the moment's star in the sky or its bead on the lifeline.
+    let found: { moment: Moment; x: number; y: number } | null = null;
+    let foundDistance = HIT_RADIUS;
+    for (const shown of this.lastShown) {
+      for (const [point, lit] of [
+        [shown.star, shown.starLit],
+        [shown.bead, shown.beadLit],
+      ] as const) {
+        const distance = Math.hypot(point.x - x, point.y - y);
+        if (lit > 0.25 && distance < foundDistance) {
+          found = { moment: shown.moment, x: point.x, y: point.y };
+          foundDistance = distance;
         }
       }
-      return found;
     }
-    let nearest: MomentPoint | null = null;
-    let nearestDistance = HIT_RADIUS;
-    for (const point of this.lastPoints) {
-      const distance = Math.hypot(point.x - x, point.y - y);
-      if (point.lit > 0.25 && distance < nearestDistance) {
-        nearest = point;
-        nearestDistance = distance;
-      }
-    }
-    return nearest && { moment: nearest.moment, x: nearest.x, y: nearest.y };
+    return found;
   }
 
   /**
-   * The age at a point on the timeline, or null when the point is off it: only the timeline
+   * The age at a point on the lifeline, or null when the point is off it: only the lifeline
    * travels through the years, so a stray touch elsewhere on the sky never does.
    */
   timelineAgeAt(x: number, y: number): number | null {
-    const zone = this.timelineZone();
-    if (!zone || x < zone.left - TIMELINE_SLOP || x > zone.right + TIMELINE_SLOP || y < zone.top || y > zone.bottom) return null;
+    const line = this.lifeline;
+    if (!line || x < line.left - TIMELINE_SLOP || x > line.right + TIMELINE_SLOP || Math.abs(y - line.y) > TIMELINE_SLOP) return null;
     return this.timelineAge(x);
   }
 
-  /** The age along the timeline under `x`, wherever the finger has drifted above or below it. */
+  /** The age along the lifeline under `x`, wherever the finger has drifted above or below it. */
   timelineAge(x: number): number {
-    const zone = this.timelineZone();
-    if (!zone) return this.age;
-    return (Math.min(1, Math.max(0, (x - zone.left) / (zone.right - zone.left))) * this.profile.age);
-  }
-
-  private timelineZone(): { left: number; right: number; top: number; bottom: number } | null {
-    if (this.lifeline) {
-      const { left, right, y } = this.lifeline;
-      return { left, right, top: y - TIMELINE_SLOP, bottom: y + TIMELINE_SLOP };
-    }
-    if (this.constellation) {
-      const { left, right, mid, wander, baseline } = this.constellation;
-      return { left, right, top: mid - wander - TIMELINE_SLOP, bottom: baseline + TIMELINE_SLOP };
-    }
-    return null;
+    const line = this.lifeline;
+    if (!line) return this.age;
+    return Math.min(1, Math.max(0, (x - line.left) / (line.right - line.left))) * this.profile.age;
   }
 
   step(years: number) {
@@ -386,18 +349,13 @@ export class SceneRenderer {
     this.height = this.canvas.clientHeight;
     this.canvas.width = Math.round(this.width * this.dpr);
     this.canvas.height = Math.round(this.height * this.dpr);
-    // There is always a timeline, even with no moments, as the one place to travel through the years.
-    const lifeline = usesLifeline(this.width);
-    this.selfY = lifeline ? (this.width < COMPACT_WIDTH ? COMPACT_SELF_Y : LIFELINE_SELF_Y) : SELF_Y;
+    this.selfY = this.width < COMPACT_WIDTH ? COMPACT_SELF_Y : SELF_Y;
     // The sky turns around your star when you move home.
     skyScroll.pivotY = this.selfY;
-    this.layout = lifeline
-      ? layoutScene(this.people, this.width, this.height, this.selfY, this.profile.age, LIFELINE_CLEARANCE)
-      : layoutScene(this.people, this.width, this.height, this.selfY, this.profile.age);
-    const systemBottom = this.layout.cy + this.layout.outerRadius * this.layout.tilt;
-    this.constellation = lifeline ? null : layoutConstellation(this.width, this.height, systemBottom, this.profile.age);
-    this.lifeline = lifeline ? layoutLifeline(this.width, this.height, this.profile.age) : null;
-    this.skyStars = this.lifeline ? this.placeSkyStars(this.lifeline, this.layout) : new Map();
+    this.layout = layoutScene(this.people, this.width, this.height, this.selfY, this.profile.age, LIFELINE_CLEARANCE);
+    // There is always a lifeline, even with no moments, as the one place to travel through the years.
+    this.lifeline = layoutLifeline(this.width, this.height, this.profile.age);
+    this.skyStars = this.placeSkyStars(this.lifeline, this.layout);
     this.redrawIfStill();
   }
 
@@ -439,10 +397,6 @@ export class SceneRenderer {
       drawSkyMoments(ctx, this.lastShown, seconds, this.focusId);
       drawLifeline(ctx, this.lifeline, this.lastShown, this.age, seconds, this.focusId);
     }
-    if (this.constellation) {
-      this.lastPoints = litMoments(this.constellation, this.moments, this.age);
-      drawConstellation(ctx, this.constellation, this.lastPoints, nowPoint(this.constellation, this.age), seconds, this.focusId);
-    }
     const far = frames.filter((f) => f.depth < 0);
     const near = frames.filter((f) => f.depth >= 0);
 
@@ -466,13 +420,6 @@ export class SceneRenderer {
     drawSelfStar(ctx, self.x, self.y, radius * (1 - 0.15 * hardship - 0.1 * grief), seconds, lit, stage);
     ctx.restore();
     drawShadow(ctx, self.x, self.y, radius * stage.scale, hardship);
-
-    if (this.constellation) {
-      for (const moment of this.moments) {
-        const progress = sparkProgress(moment, this.age);
-        if (progress !== null) drawSpark(ctx, self, momentPoint(this.constellation, moment), progress);
-      }
-    }
 
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';

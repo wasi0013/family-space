@@ -8,10 +8,6 @@ export const MOMENT_YEARS: Record<MomentKind, number> = { milestone: 1, home: 2,
 const SLOW_SHARE = 0.44;
 /** The caption naming a moment shows for this long after it begins. */
 const CAPTION_YEARS = 1.4;
-/** A milestone's spark takes this long to reach the constellation and light its star. */
-export const SPARK_YEARS = 0.6;
-/** Space kept below the constellation for the age readout and its caption. */
-const HUD_CLEARANCE = 236;
 
 /** 1 normally, easing down shortly before each moment and back up as its year passes. */
 export function playbackSpeed(moments: readonly Moment[], age: number): number {
@@ -49,46 +45,7 @@ export function momentsSettleAge(moments: readonly Moment[], currentAge: number)
   return end;
 }
 
-/**
- * The constellation runs low across the sky, birth at the left edge and today at the right, in a
- * band between the solar system and the age readout.
- */
-export interface Constellation {
-  left: number;
-  right: number;
-  mid: number;
-  /** How far stars wander above and below the middle of the band. */
-  wander: number;
-  baseline: number;
-  lifespan: number;
-}
-
-export function layoutConstellation(
-  width: number,
-  height: number,
-  systemBottom: number,
-  lifespan: number,
-): Constellation {
-  const bottom = height - HUD_CLEARANCE;
-  // Keep at least a narrow band even when a crowded system reaches low on a short screen.
-  const top = Math.min(systemBottom + 36, bottom - 40);
-  return {
-    left: width * 0.08,
-    right: width * 0.92,
-    mid: (top + bottom) / 2,
-    wander: Math.min(16, (bottom - top) * 0.25),
-    baseline: bottom + 8,
-    lifespan: Math.max(1, lifespan),
-  };
-}
-
-export interface MomentPoint extends Point {
-  moment: Moment;
-  /** How lit the star is, 0 → 1: it appears as its moment begins (a milestone's when its spark lands). */
-  lit: number;
-}
-
-export function ageX(c: Pick<Constellation, 'left' | 'right' | 'lifespan'>, age: number): number {
+export function ageX(c: Pick<Lifeline, 'left' | 'right' | 'lifespan'>, age: number): number {
   return c.left + ((c.right - c.left) * Math.min(age, c.lifespan)) / c.lifespan;
 }
 
@@ -98,50 +55,35 @@ function seed(id: string): number {
   return ((hash >>> 0) / 4294967296) * Math.PI * 2;
 }
 
-/** Where a moment's star sits; its height wanders, seeded by the moment so it never moves. */
-export function momentPoint(c: Constellation, moment: Moment): Point {
-  return { x: ageX(c, moment.age), y: c.mid + Math.sin(moment.age * 0.7 + seed(moment.id)) * c.wander };
-}
-
-/** The stars lit by `age`, in the order they happened. */
-export function litMoments(c: Constellation, moments: readonly Moment[], age: number): MomentPoint[] {
-  const points: MomentPoint[] = [];
-  for (const moment of [...moments].sort((a, b) => a.age - b.age)) {
-    const delay = moment.kind === 'milestone' ? SPARK_YEARS : 0;
-    const lit = clamp01((age - moment.age - delay) / 0.3);
-    if (age >= moment.age + delay) points.push({ ...momentPoint(c, moment), moment, lit });
-  }
-  return points;
-}
-
-/** The gold point marking "now" on the constellation. */
-export function nowPoint(c: Constellation, age: number): Point {
-  return { x: ageX(c, age), y: c.mid };
-}
-
 function smoothstep(edge0: number, edge1: number, x: number): number {
   const t = clamp01((x - edge0) / (edge1 - edge0));
   return t * t * (3 - 2 * t);
 }
 
 /*
- * On a phone there is no room for a constellation of named moments between the solar system and
- * the age, so the years become a lifeline instead: one thread of light just above the age, with a
- * bead for each moment. As a moment plays its light rises from the bead into the sky, where the
- * moments gather as a constellation of their own, straight above their years and named only when
- * tapped.
+ * The years run along a lifeline: one thread of light just above the age, with a bead for each
+ * moment, and the one place to travel back and forth through the life. As a moment plays its
+ * light rises from the bead into the sky, where the moments gather as a constellation of their
+ * own, straight above their years and named only when tapped.
  */
 
-/** Narrower than this, moments take the lifeline and the sky instead of the constellation. */
-export const LIFELINE_MAX_WIDTH = 640;
-/** How far above the bottom of the screen the lifeline runs, clear of the age readout. */
+/** On wide screens the lifeline stops growing, so the years keep a comfortable span. */
+const LIFELINE_MAX_SPAN = 1000;
+/** How far above the bottom of the screen the lifeline runs, clear of the age readout on a phone. */
 const LIFELINE_LIFT = 212;
+
+/**
+ * The lifeline's lift at this width: the age readout and its caption grow on wider screens (see
+ * .hud-age and .hud-moment in styles.css), and the lifeline rises with them.
+ */
+function liftAt(width: number): number {
+  const rem = 16;
+  const age = Math.min(3.6 * rem, Math.max(2.6 * rem, width * 0.06));
+  const caption = Math.min(1.35 * rem, Math.max(1.1 * rem, width * 0.024)) * 1.4;
+  return LIFELINE_LIFT + (age - 2.6 * rem) + (caption - 1.1 * rem * 1.4) + (width >= 900 ? 10 : 0);
+}
 /** How long a moment's light takes to rise from the lifeline to its place in the sky. */
 export const RISE_YEARS = 0.7;
-
-export function usesLifeline(width: number): boolean {
-  return width < LIFELINE_MAX_WIDTH;
-}
 
 export interface Lifeline {
   left: number;
@@ -151,7 +93,9 @@ export interface Lifeline {
 }
 
 export function layoutLifeline(width: number, height: number, lifespan: number): Lifeline {
-  return { left: width * 0.08, right: width * 0.92, y: height - LIFELINE_LIFT, lifespan: Math.max(1, lifespan) };
+  const span = Math.min(width * 0.84, LIFELINE_MAX_SPAN);
+  const left = (width - span) / 2;
+  return { left, right: left + span, y: height - liftAt(width), lifespan: Math.max(1, lifespan) };
 }
 
 /** A region of the sky to keep clear, such as a departed person's star and name. */
