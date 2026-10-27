@@ -35,6 +35,8 @@ export interface SceneOptions {
   initialAge?: number;
   /** Called with the whole-year age whenever it changes. */
   onAge: (age: number) => void;
+  /** Called when playback starts or stops, counting a pending autoplay as playing. */
+  onPlayingChange: (playing: boolean) => void;
 }
 
 /**
@@ -61,6 +63,7 @@ export class SceneRenderer {
   private igniteStart = -1;
   private lastNow = -1;
   private shownAge = -1;
+  private shownPlaying: boolean | null = null;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -91,22 +94,40 @@ export class SceneRenderer {
     this.motionQuery.removeEventListener('change', this.play);
   }
 
+  get currentAge(): number {
+    return this.age;
+  }
+
+  /** Lets the caller size a scrub gesture to the whole life. */
+  get lifespan(): number {
+    return this.endAge;
+  }
+
   togglePlay() {
     if (this.motionQuery.matches) return;
+    // Pausing before playback has even started cancels the autoplay.
+    const wasRunning = this.playing || this.autoplay;
     this.autoplay = false;
     if (this.age >= this.endAge) {
       this.age = 0;
       this.playing = true;
     } else {
-      this.playing = !this.playing;
+      this.playing = !wasRunning;
     }
+    this.reportPlaying();
   }
 
   step(years: number) {
+    this.seek(Math.min(this.profile.age, Math.round(this.age) + years));
+  }
+
+  /** Jumps to an age and holds there, as when scrubbing through the years. */
+  seek(age: number) {
     this.autoplay = false;
     this.playing = false;
-    this.age = Math.min(this.profile.age, Math.max(0, Math.round(this.age) + years));
+    this.age = Math.min(this.endAge, Math.max(0, age));
     this.reportAge();
+    this.reportPlaying();
     this.redrawIfStill();
   }
 
@@ -117,6 +138,7 @@ export class SceneRenderer {
       this.autoplay = false;
       this.playing = false;
       this.reportAge();
+      this.reportPlaying();
       this.drawStill();
       return;
     }
@@ -149,6 +171,14 @@ export class SceneRenderer {
     this.driftSpeed += (target - this.driftSpeed) * Math.min(1, dt * DRIFT_EASE);
     skyScroll.y += this.driftSpeed * dt;
     this.reportAge();
+    this.reportPlaying();
+  }
+
+  private reportPlaying() {
+    const running = this.playing || this.autoplay;
+    if (running === this.shownPlaying) return;
+    this.shownPlaying = running;
+    this.options.onPlayingChange(running);
   }
 
   private reportAge() {

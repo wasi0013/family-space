@@ -505,7 +505,15 @@ body,
   height: 100%;
   display: block;
   mix-blend-mode: screen;
-  pointer-events: none;
+  /* The sky is the playback control: tap to pause, drag to travel through the years. */
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.scene.is-scrubbing {
+  cursor: ew-resize;
 }
 
 .hud {
@@ -537,6 +545,64 @@ body,
   font-variant-numeric: lining-nums tabular-nums;
   color: #fff6e8;
   text-shadow: 0 0 24px rgba(255, 200, 140, 0.35);
+}
+
+.hud-play {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  margin-top: 6px;
+  padding: 0;
+  border: 1px solid rgba(200, 212, 255, 0.2);
+  border-radius: 50%;
+  background: rgba(3, 4, 11, 0.35);
+  color: var(--ink-soft);
+  cursor: pointer;
+  pointer-events: auto;
+  transition:
+    color 0.25s ease,
+    border-color 0.25s ease;
+}
+
+.hud-play svg {
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+}
+
+.hud-play:hover,
+.hud-play:focus-visible {
+  outline: none;
+  color: var(--ink);
+  border-color: rgba(214, 224, 255, 0.55);
+}
+
+.touch-hint {
+  display: none;
+  position: fixed;
+  left: 16px;
+  right: 16px;
+  top: max(64px, calc(env(safe-area-inset-top) + 56px));
+  margin: 0;
+  text-align: center;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+  pointer-events: none;
+  /* Shown once, long enough to read, then out of the way. */
+  animation: hint-once 7s ease 3s both;
+}
+
+@keyframes hint-once {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  12%,
+  80% {
+    opacity: 1;
+  }
 }
 
 .scene-action {
@@ -590,6 +656,9 @@ body,
 @media (hover: none) and (pointer: coarse) {
   .controls-hint {
     display: none;
+  }
+  .touch-hint {
+    display: block;
   }
 }
 
