@@ -13,6 +13,9 @@ export interface Strings {
   /** Writes a number, or a string of digits, with this language's digits. */
   num: (n: number | string) => string;
   keys: { space: string; enter: string };
+  /** The other language's name, written in that language, for the toggle. */
+  otherLanguage: string;
+  switchLanguage: string;
 
   tagline: string;
   beginKeys: [string, string];

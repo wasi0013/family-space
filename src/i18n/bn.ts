@@ -25,6 +25,8 @@ export const bn: Strings = {
   lang: 'bn',
   num,
   keys: { space: 'স্পেস', enter: 'এন্টার' },
+  otherLanguage: 'English',
+  switchLanguage: 'ইংরেজিতে দেখুন',
 
   tagline: 'আপনার জীবন, তারার আলোয় লেখা।',
   beginKeys: ['শুরু করতে', 'চাপুন'],

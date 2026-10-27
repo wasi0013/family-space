@@ -11,12 +11,11 @@ const sam: Person = { ...base, name: 'Sam', bond: 'temporary', joinAge: 5, depar
 const mom: Person = { ...base, name: 'Mom', bond: 'permanent', joinAge: 0, departAge: null };
 
 describe('choosing the language', () => {
-  it('follows ?lang= first, then the remembered choice, then English', () => {
-    expect(pickLang('bn', 'en')).toBe('bn');
-    expect(pickLang(null, 'bn')).toBe('bn');
-    expect(pickLang(null, null)).toBe('en');
-    expect(pickLang('fr', 'bn')).toBe('bn');
-    expect(pickLang('fr', null)).toBe('en');
+  it('is Bengali only when the link asks for it', () => {
+    expect(pickLang('bn')).toBe('bn');
+    expect(pickLang(null)).toBe('en');
+    expect(pickLang('en')).toBe('en');
+    expect(pickLang('fr')).toBe('en');
   });
 });
 

@@ -5,32 +5,54 @@ import type { Lang, Strings } from './strings';
 export type { Lang, Strings } from './strings';
 
 const STRINGS: Record<Lang, Strings> = { en, bn };
-const KEY = 'family-space:lang';
+/** Earlier versions remembered the language here; it is now chosen only by the link. */
+const OLD_KEY = 'family-space:lang';
 
-function isLang(value: string | null): value is Lang {
-  return value === 'en' || value === 'bn';
-}
-
-/** `?lang=` wins; otherwise the language last chosen in this browser; otherwise English. */
-export function pickLang(param: string | null, remembered: string | null): Lang {
-  if (isLang(param)) return param;
-  return isLang(remembered) ? remembered : 'en';
+/** Bengali only when the link asks for it with `?lang=bn`; English otherwise. */
+export function pickLang(param: string | null): Lang {
+  return param === 'bn' ? 'bn' : 'en';
 }
 
 function readLang(): Lang {
   if (typeof window === 'undefined') return 'en';
-  const param = new URLSearchParams(window.location.search).get('lang');
-  let remembered: string | null = null;
   try {
-    remembered = localStorage.getItem(KEY);
-    // Remember a chosen language, so a shared `?lang=bn` link stays Bengali on later visits.
-    if (isLang(param)) localStorage.setItem(KEY, param);
+    localStorage.removeItem(OLD_KEY);
   } catch {
-    // Storage is unavailable; the choice just won't be remembered.
+    // Storage is unavailable, so nothing was remembered.
   }
-  return pickLang(param, remembered);
+  return pickLang(new URLSearchParams(window.location.search).get('lang'));
 }
 
-/** The language for this visit; switching takes a reload with `?lang=`. */
+/** The language for this visit; switching reloads the page with a different `?lang=`. */
 export const LANG: Lang = readLang();
 export const t: Strings = STRINGS[LANG];
+
+const RESUME_KEY = 'family-space:resume';
+
+/** Marks this tab to reopen the sky after switching language, rather than the title screen. */
+export function resumeAfterSwitch() {
+  try {
+    sessionStorage.setItem(RESUME_KEY, '1');
+  } catch {
+    // Without storage the title screen shows, which still leads back to the sky.
+  }
+}
+
+/** True once, on the load that follows a language switch. */
+export function takeResume(): boolean {
+  try {
+    const resume = sessionStorage.getItem(RESUME_KEY) === '1';
+    sessionStorage.removeItem(RESUME_KEY);
+    return resume;
+  } catch {
+    return false;
+  }
+}
+
+/** The same page in the other language: `?lang=bn` for Bengali, no `lang` for English. */
+export function switchLanguageUrl(href: string = window.location.href): string {
+  const url = new URL(href);
+  if (LANG === 'bn') url.searchParams.delete('lang');
+  else url.searchParams.set('lang', 'bn');
+  return url.toString();
+}
