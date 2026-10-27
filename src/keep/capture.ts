@@ -189,7 +189,7 @@ function drawCaption(ctx: CanvasRenderingContext2D, caption: Caption, k: number)
   if (caption.moment) {
     ctx.letterSpacing = '0px';
     // Bengali in the light serif turns faint when shrunk, so it takes the sturdier sans.
-    ctx.font = bengali ? `500 ${25 * k}px ${FONT_BENGALI}` : `italic 300 ${27 * k}px ${FONT_DISPLAY}`;
+    ctx.font = bengali ? `500 ${25 * k}px ${FONT_BENGALI}` : `italic 400 ${27 * k}px ${FONT_DISPLAY}`;
     ctx.fillStyle = 'rgba(255, 246, 232, 0.98)';
     fillLegible(ctx, caption.moment, width / 2, ageBaseline - 80 * k, 12 * k);
   }

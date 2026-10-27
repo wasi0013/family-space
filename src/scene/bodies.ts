@@ -177,6 +177,7 @@ export function drawLabels(ctx: CanvasRenderingContext2D, frames: readonly BodyF
   ctx.textAlign = 'center';
   ctx.textBaseline = 'alphabetic';
   const claimed: Box[] = [];
+  const width = ctx.canvas.clientWidth || ctx.canvas.width;
   // The person being remembered is fully lit and claims space before anyone else.
   const strength = (f: BodyFrame) => (f.person.id === focusId ? 2 : f.labelAlpha);
   const visible = frames.filter((f) => f.labelAlpha > 0.01).sort((a, b) => strength(b) - strength(a));
@@ -186,9 +187,14 @@ export function drawLabels(ctx: CanvasRenderingContext2D, frames: readonly BodyF
     const offset = 14 * frame.scale;
     // Above the star, then below; on the smallest phones also to its right or left.
     const side = 9 * frame.scale + half;
+    // Near an edge a name shifts inward rather than running off the screen: always for someone
+    // orbiting, whose lane can reach past a phone's edge; a comet or shooting star leaving the
+    // screen takes its name with it.
+    const stays = frame.trailKind === 'orbit' || (frame.x >= 0 && frame.x <= width);
+    const inward = (x: number) => (stays ? Math.min(Math.max(x, half + 4), width - half - 4) : x);
     const spots: Point[] = [
-      { x: frame.x, y: frame.y - offset },
-      { x: frame.x, y: frame.y + offset + px },
+      { x: inward(frame.x), y: frame.y - offset },
+      { x: inward(frame.x), y: frame.y + offset + px },
       ...(compact
         ? [
             { x: frame.x + side, y: frame.y + px * 0.35 },

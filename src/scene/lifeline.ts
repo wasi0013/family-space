@@ -8,8 +8,8 @@ const STAR = '255, 226, 186';
 const GOLD = '255, 207, 138';
 const TITLE_PX = 15;
 // Bengali has no true italics, so its titles stay upright.
-const TITLE_FONT = `${t.lang === 'bn' ? '' : 'italic '}300 ${TITLE_PX}px "Cormorant Garamond", "Noto Serif Bengali", Georgia, serif`;
-const TICK_FONT = '500 9px "Inter Variable", "Hind Siliguri", ui-sans-serif, system-ui, sans-serif';
+const TITLE_FONT = `${t.lang === 'bn' ? '' : 'italic '}400 ${TITLE_PX}px "Cormorant Garamond", "Noto Serif Bengali", Georgia, serif`;
+const TICK_FONT = '500 10.5px "Inter Variable", "Hind Siliguri", ui-sans-serif, system-ui, sans-serif';
 
 /**
  * The lifeline: a thread of light across the years, brighter where they have been lived, with a
@@ -60,7 +60,7 @@ export function drawLifeline(
     ctx.lineTo(x, line.y + (year % 10 === 0 ? 7 : 5));
     ctx.stroke();
     if (year % 10 === 0) {
-      ctx.fillStyle = `rgba(214, 222, 255, ${ahead ? 0.2 : 0.38})`;
+      ctx.fillStyle = `rgba(214, 222, 255, ${ahead ? 0.4 : 0.66})`;
       ctx.fillText(t.num(year), x, line.y + 10);
     }
   }

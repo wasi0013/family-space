@@ -29,6 +29,8 @@ const MAX_SYSTEM_RADIUS = 460;
 const HUD_CLEARANCE = 150;
 /** Within this distance of the self star, far-side bodies wash out in its glare. */
 const GLARE_RADIUS = 70;
+/** However deep in the glare, a name keeps at least this much of its light. */
+const LABEL_GLARE_FLOOR = 0.65;
 const ORBIT_TRAIL_POINTS = 32;
 /** Longest arc a permanent person's orbit trail covers, so outer lanes stay calm too. */
 const CALM_TRAIL_PX = 90;
@@ -286,7 +288,8 @@ function frameBody(
       ...pos,
       scale: 0.75 + 0.25 * near,
       alpha: e * (0.55 + 0.45 * near) * glare(layout, pos, depth),
-      labelAlpha: e * (0.5 + 0.5 * near) * glare(layout, pos, depth),
+      // Names on the far side stay readable; only the body itself dims away and into the glare.
+      labelAlpha: e * (0.78 + 0.22 * near) * Math.max(LABEL_GLARE_FLOOR, glare(layout, pos, depth)),
       depth,
       glow: 0,
       trail,
@@ -451,7 +454,7 @@ function cometFrame(
     ...pos,
     scale: 0.8 + 0.2 * near,
     alpha: appear * (0.6 + 0.4 * near) * washout,
-    labelAlpha: appear * (0.55 + 0.45 * near) * washout,
+    labelAlpha: appear * (0.78 + 0.22 * near) * Math.max(LABEL_GLARE_FLOOR, washout),
     depth,
     glow: 0,
     trail,

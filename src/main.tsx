@@ -2,8 +2,12 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import '@fontsource/cormorant-garamond/300.css';
 import '@fontsource/cormorant-garamond/300-italic.css';
+// The regular weight carries smaller serif text, where the light one's hairlines fade.
+import '@fontsource/cormorant-garamond/400.css';
+import '@fontsource/cormorant-garamond/400-italic.css';
 import '@fontsource-variable/inter';
 import '@fontsource/noto-serif-bengali/300.css';
+import '@fontsource/noto-serif-bengali/400.css';
 import '@fontsource/hind-siliguri/400.css';
 import '@fontsource/hind-siliguri/500.css';
 import '@fontsource/hind-siliguri/600.css';
