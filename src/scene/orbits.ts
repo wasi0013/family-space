@@ -110,11 +110,13 @@ export function layoutScene(
   selfY: number,
   /** The profile owner's age now, for timing passes of people still passing through. */
   currentAge = Infinity,
+  /** Room kept below the system for what is drawn under it. */
+  clearance = HUD_CLEARANCE,
 ): Layout {
   const cx = width / 2;
   const cy = height * selfY;
   const tilt = width < height * 0.8 ? PORTRAIT_TILT : TILT;
-  const maxRadius = Math.max(80, Math.min(width * 0.44, (height - cy - HUD_CLEARANCE) / tilt, MAX_SYSTEM_RADIUS));
+  const maxRadius = Math.max(80, Math.min(width * 0.44, (height - cy - clearance) / tilt, MAX_SYSTEM_RADIUS));
   // The first lane stays clear of the self star's glare and light spikes.
   const minRadius = Math.min(96, Math.max(56, Math.min(width, height) * 0.1));
   // Lanes sit a fixed step apart so the system stays compact, tightening only if the busiest

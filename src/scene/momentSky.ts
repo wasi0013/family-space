@@ -88,7 +88,7 @@ export interface MomentPoint extends Point {
   lit: number;
 }
 
-export function ageX(c: Constellation, age: number): number {
+export function ageX(c: Pick<Constellation, 'left' | 'right' | 'lifespan'>, age: number): number {
   return c.left + ((c.right - c.left) * Math.min(age, c.lifespan)) / c.lifespan;
 }
 
@@ -122,4 +122,129 @@ export function nowPoint(c: Constellation, age: number): Point {
 function smoothstep(edge0: number, edge1: number, x: number): number {
   const t = clamp01((x - edge0) / (edge1 - edge0));
   return t * t * (3 - 2 * t);
+}
+
+/*
+ * On a phone there is no room for a constellation of named moments between the solar system and
+ * the age, so the years become a lifeline instead: one thread of light just above the age, with a
+ * bead for each moment. As a moment plays its light rises from the bead into the sky, where the
+ * moments gather as a constellation of their own, straight above their years and named only when
+ * tapped.
+ */
+
+/** Narrower than this, moments take the lifeline and the sky instead of the constellation. */
+export const LIFELINE_MAX_WIDTH = 640;
+/** How far above the bottom of the screen the lifeline runs, clear of the age readout. */
+const LIFELINE_LIFT = 212;
+/** How long a moment's light takes to rise from the lifeline to its place in the sky. */
+export const RISE_YEARS = 0.7;
+
+export function usesLifeline(width: number): boolean {
+  return width < LIFELINE_MAX_WIDTH;
+}
+
+export interface Lifeline {
+  left: number;
+  right: number;
+  y: number;
+  lifespan: number;
+}
+
+export function layoutLifeline(width: number, height: number, lifespan: number): Lifeline {
+  return { left: width * 0.08, right: width * 0.92, y: height - LIFELINE_LIFT, lifespan: Math.max(1, lifespan) };
+}
+
+/** A region of the sky to keep clear, such as a departed person's star and name. */
+export interface Box {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+}
+
+/** Up to this much clearance counts; beyond it every spot is as good as another. */
+const ENOUGH_CLEARANCE = 20;
+/** Closer than this to another star or a name, a moment's star would crowd it. */
+const MIN_CLEARANCE = 10;
+
+/**
+ * Where each moment's star sits in the sky: straight above its year, at the height in the band
+ * between `top` and `bottom` that keeps it clearest of `avoid` and of the moments before it,
+ * drifting up and down from one to the next so they read as a constellation rather than a row.
+ */
+export function placeSkyMoments(
+  line: Lifeline,
+  moments: readonly Moment[],
+  top: number,
+  bottom: number,
+  avoid: readonly Box[],
+): Map<string, Point> {
+  const placed = new Map<string, Point>();
+  const span = Math.max(0, bottom - top);
+  for (const moment of [...moments].sort((a, b) => a.age - b.age)) {
+    const x = ageX(line, moment.age);
+    const target = top + span * (0.5 + 0.42 * Math.sin(moment.age * 0.9 + seed(moment.id)));
+    let best: Point = { x, y: target };
+    let bestScore = -Infinity;
+    for (let i = 0; i <= 12; i++) {
+      const y = top + (span * i) / 12;
+      const clear = Math.min(
+        ENOUGH_CLEARANCE,
+        ...avoid.map((box) => distanceToBox(x, y, box)),
+        ...[...placed.values()].map((p) => Math.hypot(p.x - x, p.y - y)),
+      );
+      // Sitting on another star or a name is never worth it; beyond that, follow the drift.
+      const score = clear - 0.3 * Math.abs(y - target) - (clear < MIN_CLEARANCE ? 100 : 0);
+      if (score > bestScore) {
+        bestScore = score;
+        best = { x, y };
+      }
+    }
+    placed.set(moment.id, best);
+  }
+  return placed;
+}
+
+function distanceToBox(x: number, y: number, box: Box): number {
+  const dx = Math.max(box.left - x, 0, x - box.right);
+  const dy = Math.max(box.top - y, 0, y - box.bottom);
+  return Math.hypot(dx, dy);
+}
+
+export interface LifelineMoment {
+  moment: Moment;
+  /** Its bead on the lifeline. */
+  bead: Point;
+  /** Its star in the sky. */
+  star: Point;
+  /** How lit the bead is, 0 → 1, from the moment it begins. */
+  beadLit: number;
+  /** How lit the sky star is, 0 → 1, once its light has risen. */
+  starLit: number;
+  /** Progress of the light rising from bead to star, or null when not on its way. */
+  rise: number | null;
+}
+
+/** The moments begun by `age`, in the order they happened, with where they are on their way. */
+export function lifelineMoments(
+  line: Lifeline,
+  stars: ReadonlyMap<string, Point>,
+  moments: readonly Moment[],
+  age: number,
+): LifelineMoment[] {
+  const shown: LifelineMoment[] = [];
+  for (const moment of [...moments].sort((a, b) => a.age - b.age)) {
+    const t = age - moment.age;
+    const star = stars.get(moment.id);
+    if (t < 0 || !star) continue;
+    shown.push({
+      moment,
+      bead: { x: ageX(line, moment.age), y: line.y },
+      star,
+      beadLit: clamp01(t / 0.3),
+      starLit: clamp01((t - RISE_YEARS) / 0.3),
+      rise: t > 0 && t < RISE_YEARS ? t / RISE_YEARS : null,
+    });
+  }
+  return shown;
 }

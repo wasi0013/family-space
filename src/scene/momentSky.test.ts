@@ -4,13 +4,18 @@ import {
   ageX,
   captionAt,
   layoutConstellation,
+  layoutLifeline,
+  lifelineMoments,
   litMoments,
   momentPoint,
   momentProgress,
   momentsSettleAge,
   MOMENT_YEARS,
+  placeSkyMoments,
   playbackSpeed,
+  RISE_YEARS,
   SPARK_YEARS,
+  usesLifeline,
 } from './momentSky';
 
 const moved: Moment = { id: 'a', title: 'Moved to Dhaka', age: 13, kind: 'home' };
@@ -92,5 +97,54 @@ describe('constellation', () => {
   it('stays between the solar system and the age readout', () => {
     expect(constellation.mid - constellation.wander).toBeGreaterThan(600);
     expect(constellation.mid + constellation.wander).toBeLessThan(900 - 200);
+  });
+});
+
+describe('the lifeline on narrow screens', () => {
+  const line = layoutLifeline(390, 714, 32);
+  const departed = { left: 220, right: 290, top: 120, bottom: 160 };
+  const stars = placeSkyMoments(line, moments, 90, 240, [departed]);
+
+  it('takes over from the constellation only on phone widths', () => {
+    expect(usesLifeline(390)).toBe(true);
+    expect(usesLifeline(1440)).toBe(false);
+  });
+
+  it('runs above the age readout, birth to today across the screen', () => {
+    expect(line.y).toBeLessThan(714 - 180);
+    expect(ageX(line, 0)).toBeCloseTo(390 * 0.08);
+    expect(ageX(line, 32)).toBeCloseTo(390 * 0.92);
+  });
+
+  it('puts each moment in the sky straight above its year, inside the band', () => {
+    for (const moment of moments) {
+      const star = stars.get(moment.id)!;
+      expect(star.x).toBeCloseTo(ageX(line, moment.age));
+      expect(star.y).toBeGreaterThanOrEqual(90);
+      expect(star.y).toBeLessThanOrEqual(240);
+    }
+  });
+
+  it('keeps clear of the stars and names of those who have died', () => {
+    const inside = (p: { x: number; y: number }) =>
+      p.x > departed.left && p.x < departed.right && p.y > departed.top && p.y < departed.bottom;
+    // Graduated, at 22, sits right under that name.
+    expect(ageX(line, 22)).toBeGreaterThan(departed.left);
+    expect(ageX(line, 22)).toBeLessThan(departed.right);
+    for (const star of stars.values()) expect(inside(star)).toBe(false);
+  });
+
+  it('is placed the same way every time', () => {
+    expect(placeSkyMoments(line, [...moments].reverse(), 90, 240, [departed])).toEqual(stars);
+  });
+
+  it("lights a moment's bead as it begins, then its star once the light has risen", () => {
+    const at = (age: number) => lifelineMoments(line, stars, moments, age).find((m) => m.moment.id === moved.id);
+    expect(at(12.9)).toBeUndefined();
+    expect(at(13.1)).toMatchObject({ starLit: 0 });
+    expect(at(13.1)!.rise).toBeGreaterThan(0);
+    expect(at(13.4)!.beadLit).toBe(1);
+    expect(at(13 + RISE_YEARS + 0.3)).toMatchObject({ beadLit: 1, starLit: 1, rise: null });
+    expect(lifelineMoments(line, stars, moments, 30).map((m) => m.moment.id)).toEqual(['a', 'b', 'c']);
   });
 });

@@ -2,6 +2,7 @@ import type { Moment, Person, Profile } from '../model';
 import { skyScroll } from '../sky/skyScroll';
 import { drawBody, drawFocus, drawLabels, drawOrbitPath, drawTrail } from './bodies';
 import { drawConstellation } from './constellation';
+import { drawLifeline, drawSkyMoments } from './lifeline';
 import {
   auroraStrength,
   drawAurora,
@@ -22,12 +23,19 @@ import {
 import {
   captionAt,
   layoutConstellation,
+  layoutLifeline,
+  lifelineMoments,
   litMoments,
   momentPoint,
   momentsSettleAge,
   nowPoint,
+  placeSkyMoments,
   playbackSpeed,
+  usesLifeline,
+  type Box,
   type Constellation,
+  type Lifeline,
+  type LifelineMoment,
   type MomentPoint,
 } from './momentSky';
 import {
@@ -46,6 +54,9 @@ const MAX_DPR = 3;
 const HIT_RADIUS = 24;
 /** Vertical position of the person's star as a fraction of the viewport; leaves the upper sky open. */
 export const SELF_Y = 0.56;
+/** With a lifeline below, the system rises a little to leave it room above the age. */
+const LIFELINE_SELF_Y = 0.5;
+const LIFELINE_CLEARANCE = 236;
 /** Playback starts once the self star has finished igniting. */
 const PLAY_DELAY_S = 2.6;
 /**
@@ -109,6 +120,11 @@ export class SceneRenderer {
   /** Everyone as last drawn, for finding who was tapped. */
   private lastFrames: BodyFrame[] = [];
   private lastPoints: MomentPoint[] = [];
+  /** On narrow screens: the lifeline, where each moment's star sits in the sky, and both as last drawn. */
+  private lifeline: Lifeline | null = null;
+  private skyStars = new Map<string, { x: number; y: number }>();
+  private lastShown: LifelineMoment[] = [];
+  private selfY = SELF_Y;
   private focusId: string | null = null;
   private shownMoment: Moment | null | undefined = undefined;
 
@@ -129,8 +145,6 @@ export class SceneRenderer {
   }
 
   start() {
-    // The sky turns around your star when you move home.
-    skyScroll.pivotY = SELF_Y;
     this.resize();
     this.resizeObserver.observe(this.canvas);
     this.motionQuery.addEventListener('change', this.play);
@@ -222,6 +236,23 @@ export class SceneRenderer {
 
   /** The moment star drawn nearest a point on screen, if a tap there would pick it. */
   momentAt(x: number, y: number): { moment: Moment; x: number; y: number } | null {
+    if (this.lifeline) {
+      let found: { moment: Moment; x: number; y: number } | null = null;
+      let foundDistance = HIT_RADIUS;
+      for (const shown of this.lastShown) {
+        for (const [point, lit] of [
+          [shown.star, shown.starLit],
+          [shown.bead, shown.beadLit],
+        ] as const) {
+          const distance = Math.hypot(point.x - x, point.y - y);
+          if (lit > 0.25 && distance < foundDistance) {
+            found = { moment: shown.moment, x: point.x, y: point.y };
+            foundDistance = distance;
+          }
+        }
+      }
+      return found;
+    }
     let nearest: MomentPoint | null = null;
     let nearestDistance = HIT_RADIUS;
     for (const point of this.lastPoints) {
@@ -321,11 +352,18 @@ export class SceneRenderer {
     this.height = this.canvas.clientHeight;
     this.canvas.width = Math.round(this.width * this.dpr);
     this.canvas.height = Math.round(this.height * this.dpr);
-    this.layout = layoutScene(this.people, this.width, this.height, SELF_Y, this.profile.age);
+    const lifeline = this.moments.length > 0 && usesLifeline(this.width);
+    this.selfY = lifeline ? LIFELINE_SELF_Y : SELF_Y;
+    // The sky turns around your star when you move home.
+    skyScroll.pivotY = this.selfY;
+    this.layout = lifeline
+      ? layoutScene(this.people, this.width, this.height, this.selfY, this.profile.age, LIFELINE_CLEARANCE)
+      : layoutScene(this.people, this.width, this.height, this.selfY, this.profile.age);
     const systemBottom = this.layout.cy + this.layout.outerRadius * this.layout.tilt;
-    this.constellation = this.moments.length
-      ? layoutConstellation(this.width, this.height, systemBottom, this.profile.age)
-      : null;
+    this.constellation =
+      this.moments.length && !lifeline ? layoutConstellation(this.width, this.height, systemBottom, this.profile.age) : null;
+    this.lifeline = lifeline ? layoutLifeline(this.width, this.height, this.profile.age) : null;
+    this.skyStars = this.lifeline ? this.placeSkyStars(this.lifeline, this.layout) : new Map();
     this.redrawIfStill();
   }
 
@@ -362,6 +400,11 @@ export class SceneRenderer {
     this.lastFrames = frames;
     this.reportMoment();
 
+    if (this.lifeline) {
+      this.lastShown = lifelineMoments(this.lifeline, this.skyStars, this.moments, this.age);
+      drawSkyMoments(ctx, this.lastShown, seconds, this.focusId);
+      drawLifeline(ctx, this.lifeline, this.lastShown, this.age, seconds, this.focusId);
+    }
     if (this.constellation) {
       this.lastPoints = litMoments(this.constellation, this.moments, this.age);
       drawConstellation(ctx, this.constellation, this.lastPoints, nowPoint(this.constellation, this.age), seconds, this.focusId);
@@ -381,7 +424,7 @@ export class SceneRenderer {
     const grief = griefAt(this.people, this.age);
     // Grief makes the light waver as well as fade.
     const waver = grief * (0.5 + 0.5 * Math.sin(seconds * 3.1) * Math.sin(seconds * 1.3 + 0.7));
-    const self = { x: width / 2, y: height * SELF_Y };
+    const self = { x: width / 2, y: height * this.selfY };
     const flare = flareAt(this.moments, this.age);
     const lit = flare && ig.ring >= 1 ? { ...ig, flash: Math.max(ig.flash, flare.flash), ring: flare.ring } : ig;
     ctx.save();
@@ -405,6 +448,23 @@ export class SceneRenderer {
     ctx.restore();
 
     drawLabels(ctx, frames, this.focusId);
+  }
+
+  /**
+   * Moments' stars share the upper sky with the stars of those who have died, so each is placed
+   * clear of them and their names, and above the system even once the star has swollen.
+   */
+  private placeSkyStars(line: Lifeline, layout: Layout) {
+    const swell = selfStarRadius(this.width, this.height) * (this.stageAt(this.profile.age).scale - 1) * 2.4;
+    const top = Math.max(84, this.height * 0.11);
+    const bottom = Math.max(top + 24, layout.cy - (layout.outerRadius + swell) * layout.tilt - 36);
+    const avoid: Box[] = [];
+    for (const track of layout.tracks) {
+      if (!track.slot) continue;
+      const half = track.person.name.length * 3.6 + 12;
+      avoid.push({ left: track.slot.x - half, right: track.slot.x + half, top: track.slot.y - 30, bottom: track.slot.y + 10 });
+    }
+    return placeSkyMoments(line, this.moments, top, bottom, avoid);
   }
 
   /** The star's stage at an age, its size capped so a supergiant never crowds out a small screen. */
