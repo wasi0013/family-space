@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type RefObject } from 'react';
+import { t } from '../i18n';
 import type { Profile } from '../model';
 import type { SceneRenderer } from '../scene/SceneRenderer';
 import { canRecord, deliver, JourneyRecorder, slug, snapshot, type Caption, type Layers } from './capture';
@@ -63,7 +64,7 @@ export function Keep({ profile, skyRef, sceneRef, rendererRef }: KeepProps) {
     setRecording(null);
     const video = await recorder.stop();
     const result = await deliver(video, `family-space-${slug(profile.name)}.${recorder.extension}`);
-    if (result !== 'cancelled') tell(result === 'shared' ? 'Your journey is ready to share' : 'Your journey was saved');
+    if (result !== 'cancelled') tell(result === 'shared' ? t.journeyReady : t.journeySaved);
   };
 
   // While recording, tick the timer and stop on our own once the life has settled.
@@ -97,7 +98,7 @@ export function Keep({ profile, skyRef, sceneRef, rendererRef }: KeepProps) {
     try {
       recorder.start();
     } catch {
-      tell('This browser can’t record video');
+      tell(t.cannotRecord);
       return;
     }
     recorderRef.current = recorder;
@@ -111,14 +112,14 @@ export function Keep({ profile, skyRef, sceneRef, rendererRef }: KeepProps) {
     setOpen(false);
     const moment = caption();
     // Encoding a large image can take a moment; say so straight away.
-    tell('Saving this moment…');
+    tell(t.savingImage);
     try {
       const image = await snapshot(sources, moment);
       const result = await deliver(image, `family-space-${slug(profile.name)}-age-${moment.age}.png`);
-      if (result !== 'cancelled') tell(result === 'shared' ? 'Ready to share' : 'Image saved');
+      if (result !== 'cancelled') tell(result === 'shared' ? t.imageReady : t.imageSaved);
     } catch (error) {
       console.error('Saving the image failed', error);
-      tell('Couldn’t save the image');
+      tell(t.imageFailed);
     }
   };
 
@@ -130,15 +131,16 @@ export function Keep({ profile, skyRef, sceneRef, rendererRef }: KeepProps) {
         <div className="recording" role="status">
           <span className="recording-dot" aria-hidden="true" />
           <span>
-            Recording your journey <span className="recording-time">{`${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`}</span>
+            {t.recording}{' '}
+            <span className="recording-time">{t.num(`${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`)}</span>
           </span>
           <button type="button" className="recording-stop" onClick={() => void finishRecording()}>
-            Stop
+            {t.stop}
           </button>
         </div>
       ) : (
         <button type="button" className="scene-action" aria-expanded={open} onClick={() => setOpen(!open)}>
-          Keep
+          {t.keep}
         </button>
       )}
 
@@ -146,13 +148,13 @@ export function Keep({ profile, skyRef, sceneRef, rendererRef }: KeepProps) {
         <div className="keep-menu" role="menu">
           {recordable && (
             <button type="button" role="menuitem" className="keep-option" onClick={record}>
-              <span className="keep-option-title">Record your journey</span>
-              <span className="keep-option-note">A video from your first light to today</span>
+              <span className="keep-option-title">{t.recordJourney}</span>
+              <span className="keep-option-note">{t.recordJourneyNote}</span>
             </button>
           )}
           <button type="button" role="menuitem" className="keep-option" onClick={() => void saveImage()}>
-            <span className="keep-option-title">Save this moment</span>
-            <span className="keep-option-note">An image of your sky as it is now</span>
+            <span className="keep-option-title">{t.saveMoment}</span>
+            <span className="keep-option-note">{t.saveMomentNote}</span>
           </button>
         </div>
       )}

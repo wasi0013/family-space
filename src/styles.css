@@ -7,8 +7,9 @@
   --line: rgba(200, 212, 255, 0.28);
   --glow: rgba(150, 172, 255, 0.35);
   --error: #ffb4a8;
-  --font-display: 'Cormorant Garamond', 'Iowan Old Style', Georgia, serif;
-  --font-ui: 'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  /* Bengali faces follow the Latin ones, so Bengali text and names fall back to them. */
+  --font-display: 'Cormorant Garamond', 'Noto Serif Bengali', 'Iowan Old Style', Georgia, serif;
+  --font-ui: 'Inter Variable', 'Hind Siliguri', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
   --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
   font-family: var(--font-ui);
 }
@@ -512,6 +513,10 @@ body,
   -webkit-tap-highlight-color: transparent;
 }
 
+.scene.is-over-person {
+  cursor: pointer;
+}
+
 .scene.is-scrubbing {
   cursor: ew-resize;
 }
@@ -745,6 +750,144 @@ body,
   animation: rise-in 0.4s var(--ease-out) both;
 }
 
+.memory-card {
+  position: fixed;
+  z-index: 2;
+  padding: 16px 18px 18px;
+  border: 1px solid rgba(200, 212, 255, 0.18);
+  border-radius: 18px;
+  background: rgba(6, 9, 24, 0.82);
+  box-shadow:
+    0 18px 48px rgba(0, 0, 0, 0.45),
+    0 0 40px -18px var(--person-color);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  animation: rise-in 0.45s var(--ease-out) both;
+}
+
+.memory-card:focus {
+  outline: none;
+}
+
+.memory-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.memory-name {
+  flex: 1;
+  margin: 0;
+  font: 300 1.6rem/1.1 var(--font-display);
+  color: #f3f5ff;
+}
+
+.memory-close {
+  width: 28px;
+  height: 28px;
+  margin: -4px -6px 0 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  font: 300 18px/1 var(--font-ui);
+  color: var(--ink-faint);
+  cursor: pointer;
+}
+
+.memory-close:hover,
+.memory-close:focus-visible {
+  outline: none;
+  color: var(--ink);
+  background: rgba(160, 180, 255, 0.1);
+}
+
+.memory-journey {
+  margin: 6px 0 14px;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  color: var(--ink-faint);
+}
+
+.memory-text,
+.memory-add {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  font: italic 300 1.2rem/1.35 var(--font-display);
+  color: var(--ink);
+  cursor: text;
+}
+
+.memory-add {
+  color: var(--ink-faint);
+}
+
+.memory-text:hover,
+.memory-add:hover,
+.memory-text:focus-visible,
+.memory-add:focus-visible {
+  outline: none;
+  color: #fff6e8;
+}
+
+.memory-field {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 2px 0 8px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  resize: none;
+  font: italic 300 1.2rem/1.35 var(--font-display);
+  color: var(--ink);
+  caret-color: #c9d4ff;
+}
+
+.memory-field::placeholder {
+  color: rgba(214, 222, 255, 0.3);
+}
+
+.memory-field:focus {
+  outline: none;
+  border-bottom-color: rgba(214, 224, 255, 0.7);
+}
+
+.memory-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 10px;
+}
+
+.memory-count {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-faint);
+}
+
+.memory-save {
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(160, 180, 255, 0.06);
+  font: 500 11px/1 var(--font-ui);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.memory-save:hover,
+.memory-save:focus-visible {
+  outline: none;
+  border-color: rgba(214, 224, 255, 0.6);
+  background: rgba(160, 180, 255, 0.14);
+}
+
 .controls-hint {
   position: fixed;
   right: max(16px, env(safe-area-inset-right));
@@ -774,6 +917,38 @@ body,
   .touch-hint {
     display: block;
   }
+}
+
+/* ---------- Bengali ---------- */
+
+/*
+ * Bengali has no true italics, and browsers fake them badly; wide letter spacing pulls conjuncts
+ * apart. The English brand is marked lang="en" and keeps both.
+ */
+:lang(bn) {
+  letter-spacing: normal !important;
+  font-style: normal !important;
+}
+
+/*
+ * Small Latin labels read well in spaced capitals; Bengali at those sizes is too small, so it
+ * gets a few more pixels instead.
+ */
+:lang(bn) :is(.begin, .continue, .scene-action, .recording-stop, .memory-save, .fact-label, .hud-caption) {
+  font-size: 14px;
+}
+
+:lang(bn) :is(.start-over, .people-hint, .answer-error, .controls-hint, .touch-hint, .memory-journey, .keep-option-note, .keep-notice, .recording, .person-edit, .question-count) {
+  font-size: 14px;
+}
+
+:lang(bn) .person-span {
+  font-size: 12.5px;
+}
+
+/* Bengali vowel signs reach above and below the letters, so display text needs taller lines. */
+:lang(bn) :is(.question-text, .tagline, .people-lede, .hud-caption, .memory-name, .keep-option-title) {
+  line-height: 1.35;
 }
 
 /* ---------- Motion ---------- */

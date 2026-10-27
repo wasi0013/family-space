@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
+import { t } from '../i18n';
 
 const TITLE = 'Family Space';
 /** Each letter's place in the title, so letters emerge one after another across both words. */
@@ -59,7 +60,8 @@ export function TitleScreen({ returning, onStart, onStartOver }: TitleScreenProp
 
   return (
     <section className={leaving ? 'title-screen is-leaving' : 'title-screen'}>
-      <h1 className="title" aria-label={TITLE}>
+      {/* The brand stays in English in every language. */}
+      <h1 className="title" aria-label={TITLE} lang="en">
         {WORDS.map((letters, w) => (
           <span className="title-word" key={w} aria-hidden="true">
             {letters.map(({ letter, index }) => (
@@ -70,16 +72,17 @@ export function TitleScreen({ returning, onStart, onStartOver }: TitleScreenProp
           </span>
         ))}
       </h1>
-      <p className="tagline">Your life, written in starlight.</p>
+      <p className="tagline">{t.tagline}</p>
       <button type="button" className="begin" onClick={start}>
         <span className="begin-keys">
-          Press <kbd>Space</kbd> {returning ? 'to return to your sky' : 'to begin'}
+          {(returning ? t.returnKeys : t.beginKeys)[0]} <kbd>{t.keys.space}</kbd>{' '}
+          {(returning ? t.returnKeys : t.beginKeys)[1]}
         </span>
-        <span className="begin-touch">{returning ? 'Tap to return to your sky' : 'Tap to begin'}</span>
+        <span className="begin-touch">{returning ? t.returnTouch : t.beginTouch}</span>
       </button>
       {returning && (
         <button type="button" className={confirming ? 'start-over is-confirming' : 'start-over'} onClick={startOver}>
-          {confirming ? 'Erase your sky? Once more to confirm' : 'Start a new sky'}
+          {confirming ? t.startOverConfirm : t.startOver}
         </button>
       )}
     </section>

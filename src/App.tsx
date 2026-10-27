@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import type { Person, Profile } from './model';
+import { LANG } from './i18n';
 import { Scene } from './scene/Scene';
 import { samplePeople } from './scene/samplePeople';
 import { Onboarding } from './screens/Onboarding';
@@ -20,7 +21,7 @@ const ONBOARDING_STEPS = 3;
 const params = new URLSearchParams(window.location.search);
 const DEMO_PROFILE: Profile | null =
   params.has('demo') || params.has('people')
-    ? { name: 'Alex', age: Number(params.get('demo') || params.get('people')) || 32 }
+    ? { name: LANG === 'bn' ? 'আলিফ' : 'Alex', age: Number(params.get('demo') || params.get('people')) || 32 }
     : null;
 const SEEK_AGE = params.has('age') ? Number(params.get('age')) : undefined;
 const SAVED = DEMO_PROFILE ? null : loadSky();
@@ -36,7 +37,7 @@ export function App() {
   const [profile, setProfile] = useState<Profile | null>(DEMO_PROFILE ?? SAVED?.profile ?? null);
   const [people, setPeople] = useState<Person[] | null>(() =>
     params.has('demo')
-      ? samplePeople(DEMO_PROFILE!.age, params.get('cast') === 'crowd' ? 'crowd' : 'family')
+      ? samplePeople(DEMO_PROFILE!.age, params.get('cast') === 'crowd' ? 'crowd' : 'family', LANG)
       : (SAVED?.people ?? null),
   );
   const persist = (next: Profile, nextPeople: Person[] | null) => {
@@ -90,9 +91,18 @@ export function App() {
           initialAge={SEEK_AGE}
           skyRef={skyRef}
           onEditPeople={() => setPhase('people')}
+          onRemember={(id, memory) => {
+            const next = (people ?? []).map((p) => (p.id === id ? { ...p, memory: memory || undefined } : p));
+            setPeople(next);
+            persist(profile, next);
+          }}
         />
       )}
-      {phase !== 'title' && <header className="brand">Family Space</header>}
+      {phase !== 'title' && (
+        <header className="brand" lang="en">
+          Family Space
+        </header>
+      )}
     </main>
   );
 }

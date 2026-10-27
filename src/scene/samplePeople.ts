@@ -1,3 +1,4 @@
+import type { Lang } from '../i18n';
 import type { Bond, Person } from '../model';
 
 type Sample = [name: string, bond: Bond, join: number, depart: number | null, color: string];
@@ -32,13 +33,37 @@ const CROWD: Sample[] = [
   ['Theo', 'permanent', 0.92, null, '#7ea6ff'],
 ];
 
+/** The same families as Bangladeshi ones: paternal grandparents are দাদা/দাদি, maternal নানা/নানি. */
+const BENGALI_NAMES: Record<string, string> = {
+  Grandma: 'দাদি',
+  Grandpa: 'দাদা',
+  Mom: 'মা',
+  Dad: 'বাবা',
+  Sam: 'সাকিব',
+  Biscuit: 'মিনি',
+  Maya: 'মায়া',
+  Leo: 'রুমানা',
+  'Great-grandma': 'বড় দাদি',
+  'Great-grandpa': 'বড় দাদা',
+  Nana: 'নানি',
+  Pop: 'নানা',
+  'Uncle Ray': 'চাচা',
+  'Aunt June': 'ফুফু',
+  'Uncle Tom': 'মামা',
+  'Aunt May': 'খালা',
+  Nora: 'নূরা',
+  Theo: 'তাহমিদ',
+};
+
 export type Cast = 'family' | 'crowd';
 
-export function samplePeople(age: number, cast: Cast = 'family'): Person[] {
-  return (cast === 'crowd' ? CROWD : SAMPLES).map(([name, bond, join, depart, color]) => {
+export function samplePeople(age: number, cast: Cast = 'family', lang: Lang = 'en'): Person[] {
+  return (cast === 'crowd' ? CROWD : SAMPLES).map(([english, bond, join, depart, color]) => {
+    const name = lang === 'bn' ? (BENGALI_NAMES[english] ?? english) : english;
     const joinAge = Math.round(join * age);
     return {
-      id: name.toLowerCase().replace(/\W+/g, '-'),
+      // Ids come from the English name, so a sample sky is laid out the same in every language.
+      id: english.toLowerCase().replace(/\W+/g, '-'),
       name,
       bond,
       joinAge,

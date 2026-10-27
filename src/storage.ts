@@ -1,4 +1,5 @@
 import type { Person, Profile } from './model';
+import { MEMORY_MAX_LENGTH } from './people';
 
 /** The sky is kept in this browser only. Bump the version if the saved shape changes. */
 const KEY = 'family-space:sky';
@@ -56,6 +57,7 @@ function isPerson(value: unknown): value is Person {
     p.joinAge >= 0 &&
     (p.departAge === null || (Number.isFinite(p.departAge) && p.departAge > p.joinAge)) &&
     typeof p.color === 'string' &&
-    /^#[0-9a-f]{6}$/i.test(p.color)
+    /^#[0-9a-f]{6}$/i.test(p.color) &&
+    (p.memory === undefined || (typeof p.memory === 'string' && p.memory.length <= MEMORY_MAX_LENGTH))
   );
 }

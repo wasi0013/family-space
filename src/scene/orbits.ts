@@ -17,7 +17,7 @@ const PORTRAIT_TILT = 0.5;
 /** Seconds for the innermost orbit to go round once; slow enough to read every label. */
 const INNER_REVOLUTION_S = 90;
 /** Once someone leaves, the people outside them close ranks over this many years. */
-const CLOSE_RANKS_YEARS = 1.5;
+export const CLOSE_RANKS_YEARS = 1.5;
 /** Widest the system may grow, however many people orbit at once. */
 const MAX_SYSTEM_RADIUS = 460;
 /** Room kept clear at the bottom of the screen for the age readout. */

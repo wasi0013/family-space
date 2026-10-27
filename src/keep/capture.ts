@@ -1,3 +1,5 @@
+import { t } from '../i18n';
+
 /** Exports are capped at 1080p so videos encode smoothly and stay a sensible size. */
 const MAX_EXPORT_WIDTH = 1920;
 const MAX_EXPORT_HEIGHT = 1080;
@@ -6,8 +8,11 @@ const VIDEO_BITRATE = 8_000_000;
 /** Preferred first: MP4 plays everywhere; Chrome and Firefox record WebM instead. */
 const VIDEO_TYPES = ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
 
-const FONT_UI = '"Inter Variable", ui-sans-serif, system-ui, sans-serif';
-const FONT_DISPLAY = '"Cormorant Garamond", Georgia, serif';
+// Bengali fonts follow the Latin ones, so Bengali names and words render properly too.
+const FONT_UI = '"Inter Variable", "Hind Siliguri", ui-sans-serif, system-ui, sans-serif';
+const FONT_DISPLAY = '"Cormorant Garamond", "Noto Serif Bengali", Georgia, serif';
+/** Wide tracking breaks Bengali conjuncts apart, so it only applies to Latin text. */
+const tracking = (px: number) => (t.lang === 'bn' ? '0px' : `${px}px`);
 
 export interface Layers {
   sky: HTMLCanvasElement;
@@ -62,16 +67,17 @@ function drawCaption(ctx: CanvasRenderingContext2D, caption: Caption, k: number)
   const ageBaseline = height - 60 * k;
   ctx.font = `300 ${56 * k}px ${FONT_DISPLAY}`;
   ctx.fillStyle = '#fff6e8';
-  ctx.fillText(String(caption.age), width / 2, ageBaseline);
+  ctx.fillText(t.num(caption.age), width / 2, ageBaseline);
 
   ctx.shadowBlur = 0;
   ctx.font = `500 ${10 * k}px ${FONT_UI}`;
-  ctx.letterSpacing = `${3.2 * k}px`;
+  ctx.letterSpacing = tracking(3.2 * k);
   ctx.fillStyle = 'rgba(220, 228, 255, 0.5)';
-  ctx.fillText(`${caption.name} · age`.toUpperCase(), width / 2, ageBaseline - 52 * k);
+  ctx.fillText(t.ageCaption(caption.name).toUpperCase(), width / 2, ageBaseline - 52 * k);
 
   ctx.textAlign = 'left';
   ctx.font = `500 ${11 * k}px ${FONT_UI}`;
+  // The brand is Latin in every language, so it keeps its tracking.
   ctx.letterSpacing = `${3.7 * k}px`;
   ctx.fillStyle = 'rgba(220, 228, 255, 0.42)';
   ctx.fillText('FAMILY SPACE', 16 * k, height - 18 * k);
@@ -172,7 +178,8 @@ export async function deliver(blob: Blob, filename: string): Promise<Delivery> {
   return 'downloaded';
 }
 
-/** "Alex Rivera" → "alex-rivera", for friendly file names. */
+/** "Alex Rivera" → "alex-rivera", for friendly file names. Keeps every script's letters intact. */
 export function slug(text: string): string {
-  return text.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-|-$/g, '') || 'my-sky';
+  // Combining marks (\p{M}) are part of letters in many scripts, such as Bengali vowel signs.
+  return text.toLowerCase().replace(/[^\p{L}\p{M}\p{N}]+/gu, '-').replace(/^-|-$/g, '') || 'my-sky';
 }

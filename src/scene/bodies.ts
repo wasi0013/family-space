@@ -78,12 +78,59 @@ export function drawTrail(ctx: CanvasRenderingContext2D, frame: BodyFrame) {
   }
 }
 
+/** How deeply a star can dim when it twinkles: memorial stars like real ones, orbiters gently. */
+const MEMORIAL_TWINKLE = 0.6;
+const ORBIT_TWINKLE = 0.22;
+const rhythmCache = new Map<string, Rhythm>();
+
+/** Each person's own twinkle: where in the cycle they start, and how fast it runs. */
+export interface Rhythm {
+  phase: number;
+  tempo: number;
+}
+
+/** A steady per-person rhythm, so no two stars twinkle in step. */
+export function rhythmOf(id: string): Rhythm {
+  let rhythm = rhythmCache.get(id);
+  if (rhythm === undefined) {
+    let hash = 2166136261;
+    for (let i = 0; i < id.length; i++) hash = Math.imul(hash ^ id.charCodeAt(i), 16777619);
+    // Mix the bits, or names that differ by a letter ("grandma", "grandpa") twinkle in step.
+    hash ^= hash >>> 16;
+    hash = Math.imul(hash, 0x85ebca6b);
+    hash ^= hash >>> 13;
+    hash = Math.imul(hash, 0xc2b2ae35);
+    hash ^= hash >>> 16;
+    const bits = hash >>> 0;
+    // Low bits set the phase and high bits the tempo, so the two don't move together.
+    rhythm = { phase: ((bits & 0xffff) / 0x10000) * Math.PI * 2, tempo: 0.75 + 0.5 * ((bits >>> 16) / 0x10000) };
+    rhythmCache.set(id, rhythm);
+  }
+  return rhythm;
+}
+
+/**
+ * Scintillation as a 0–1 dip: three detuned waves, so the star holds steady most of the time,
+ * then dims and comes back the way starlight does through moving air.
+ */
+export function twinkleDip(seconds: number, { phase, tempo }: Rhythm): number {
+  seconds *= tempo;
+  const wave =
+    0.55 * Math.sin(seconds * 0.83 + phase) +
+    0.3 * Math.sin(seconds * 2.17 + phase * 1.7) +
+    0.15 * Math.sin(seconds * 5.3 + phase * 2.9);
+  return Math.max(0, -wave) ** 1.4;
+}
+
 export function drawBody(ctx: CanvasRenderingContext2D, frame: BodyFrame, seconds: number) {
   if (frame.alpha <= 0.01) return;
   const color = rgb(frame.person.color);
-  const twinkle = frame.memorial ? 0.85 + 0.15 * Math.sin(seconds * 1.7 + frame.x) : 1;
+  const depth = frame.memorial ? MEMORIAL_TWINKLE : ORBIT_TWINKLE;
+  const dip = twinkleDip(seconds, rhythmOf(frame.person.id));
+  const twinkle = 1 - depth * dip;
   const a = frame.alpha * twinkle;
-  const size = frame.scale * (1 + frame.glow * 0.8) * (frame.memorial ? 1.2 : 1);
+  // The glow draws in a little as the star dims, as a real one does.
+  const size = frame.scale * (1 + frame.glow * 0.8) * (frame.memorial ? 1.2 : 1) * (1 - 0.18 * depth * dip);
   glowDisc(ctx, frame.x, frame.y, 18 * size, [
     [0, `rgba(${color}, ${0.6 * a})`],
     [0.25, `rgba(${color}, ${0.2 * a})`],
@@ -97,7 +144,7 @@ export function drawBody(ctx: CanvasRenderingContext2D, frame: BodyFrame, second
   ]);
 }
 
-const LABEL_FONT = `500 ${LABEL_PX}px "Inter Variable", ui-sans-serif, system-ui, sans-serif`;
+const LABEL_FONT = `500 ${LABEL_PX}px "Inter Variable", "Hind Siliguri", ui-sans-serif, system-ui, sans-serif`;
 /** Labels that can't find clear space fade back to this much of their opacity. */
 const CROWDED_LABEL_ALPHA = 0.3;
 
@@ -113,12 +160,14 @@ interface Box {
  * print over each other. The most visible labels claim space first; any that still can't fit
  * fade back.
  */
-export function drawLabels(ctx: CanvasRenderingContext2D, frames: readonly BodyFrame[]) {
+export function drawLabels(ctx: CanvasRenderingContext2D, frames: readonly BodyFrame[], focusId: string | null = null) {
   ctx.font = LABEL_FONT;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'alphabetic';
   const claimed: Box[] = [];
-  const visible = frames.filter((f) => f.labelAlpha > 0.01).sort((a, b) => b.labelAlpha - a.labelAlpha);
+  // The person being remembered is fully lit and claims space before anyone else.
+  const strength = (f: BodyFrame) => (f.person.id === focusId ? 2 : f.labelAlpha);
+  const visible = frames.filter((f) => f.labelAlpha > 0.01).sort((a, b) => strength(b) - strength(a));
 
   for (const frame of visible) {
     const half = ctx.measureText(frame.person.name).width / 2 + 3;
@@ -133,10 +182,21 @@ export function drawLabels(ctx: CanvasRenderingContext2D, frames: readonly BodyF
     const free = spots.find((baseline) => !claimed.some((box) => overlaps(box, boxAt(baseline))));
     const baseline = free ?? spots[0];
     if (free !== undefined) claimed.push(boxAt(free));
-    const alpha = frame.labelAlpha * (free === undefined ? CROWDED_LABEL_ALPHA : 1);
+    const lit = frame.person.id === focusId ? 1 : frame.labelAlpha;
+    const alpha = lit * (free === undefined ? CROWDED_LABEL_ALPHA : 1);
     ctx.fillStyle = `rgba(${rgb(frame.person.color, 0.3)}, ${0.92 * alpha})`;
     ctx.fillText(frame.person.name, frame.x, baseline);
   }
+}
+
+/** A soft pulsing ring around the person whose memory card is open. */
+export function drawFocus(ctx: CanvasRenderingContext2D, frame: BodyFrame, seconds: number) {
+  const pulse = 0.5 + 0.5 * Math.sin(seconds * 2.2);
+  ctx.beginPath();
+  ctx.arc(frame.x, frame.y, (13 + 2.5 * pulse) * frame.scale, 0, Math.PI * 2);
+  ctx.strokeStyle = `rgba(${rgb(frame.person.color, 0.2)}, ${0.35 + 0.3 * pulse})`;
+  ctx.lineWidth = 1.2;
+  ctx.stroke();
 }
 
 function overlaps(a: Box, b: Box): boolean {

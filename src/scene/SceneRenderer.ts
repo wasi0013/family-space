@@ -1,6 +1,6 @@
 import type { Person, Profile } from '../model';
 import { skyScroll } from '../sky/skyScroll';
-import { drawBody, drawLabels, drawOrbitPath, drawTrail } from './bodies';
+import { drawBody, drawFocus, drawLabels, drawOrbitPath, drawTrail } from './bodies';
 import {
   clamp01,
   frameBodies,
@@ -13,6 +13,8 @@ import {
 import { drawSelfStar, ignition, SETTLED, type Ignition } from './selfStar';
 
 const MAX_DPR = 3;
+/** How close a tap must land to a person to pick them, in CSS pixels. */
+const HIT_RADIUS = 24;
 /** Vertical position of the person's star as a fraction of the viewport; leaves the upper sky open. */
 export const SELF_Y = 0.56;
 /** Playback starts once the self star has finished igniting. */
@@ -66,6 +68,9 @@ export class SceneRenderer {
   private lastNow = -1;
   private shownAge = -1;
   private shownPlaying: boolean | null = null;
+  /** Everyone as last drawn, for finding who was tapped. */
+  private lastFrames: BodyFrame[] = [];
+  private focusId: string | null = null;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -135,6 +140,34 @@ export class SceneRenderer {
       this.playing = !wasRunning;
     }
     this.reportPlaying();
+  }
+
+  pause() {
+    this.autoplay = false;
+    this.playing = false;
+    this.reportPlaying();
+  }
+
+  /** Rings one person, as while their memory card is open; null clears it. */
+  setFocus(id: string | null) {
+    this.focusId = id;
+    this.redrawIfStill();
+  }
+
+  /** The person drawn nearest a point on screen, if a tap there would pick them. */
+  personAt(x: number, y: number): { person: Person; x: number; y: number } | null {
+    let nearest: BodyFrame | null = null;
+    let nearestDistance = HIT_RADIUS;
+    for (const frame of this.lastFrames) {
+      // Skip people too faint to see: just arriving, or fading out as a shooting star.
+      if (frame.alpha < 0.25) continue;
+      const distance = Math.hypot(frame.x - x, frame.y - y);
+      if (distance < nearestDistance) {
+        nearest = frame;
+        nearestDistance = distance;
+      }
+    }
+    return nearest && { person: nearest.person, x: nearest.x, y: nearest.y };
   }
 
   step(years: number) {
@@ -234,6 +267,7 @@ export class SceneRenderer {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     const frames = frameBodies(layout, this.age, this.idleSeconds);
+    this.lastFrames = frames;
     const far = frames.filter((f) => f.depth < 0);
     const near = frames.filter((f) => f.depth >= 0);
 
@@ -250,9 +284,11 @@ export class SceneRenderer {
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
     this.drawBodies(near, seconds);
+    const focus = frames.find((f) => f.person.id === this.focusId);
+    if (focus) drawFocus(ctx, focus, seconds);
     ctx.restore();
 
-    drawLabels(ctx, frames);
+    drawLabels(ctx, frames, this.focusId);
   }
 
   private drawBodies(frames: readonly BodyFrame[], seconds: number) {

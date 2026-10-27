@@ -1,19 +1,21 @@
 import { useState, type FormEvent } from 'react';
+import { t } from '../i18n';
 import type { Profile } from '../model';
+import { asciiDigits } from '../people';
 
 const STEPS = [
   {
     id: 'name',
-    question: 'What should we call you?',
-    placeholder: 'Your name',
+    question: t.askName,
+    placeholder: t.namePlaceholder,
     inputMode: 'text',
     autoComplete: 'given-name',
     maxLength: 40,
   },
   {
     id: 'age',
-    question: 'How many years have you lived?',
-    placeholder: 'Your age',
+    question: t.askAge,
+    placeholder: t.agePlaceholder,
     inputMode: 'numeric',
     autoComplete: 'off',
     maxLength: 3,
@@ -23,9 +25,9 @@ const STEPS = [
 type Answers = Record<(typeof STEPS)[number]['id'], string>;
 
 function validate(id: keyof Answers, value: string): string {
-  if (id === 'name') return value.trim() ? '' : 'Tell us a name to write in the stars.';
-  const age = Number(value);
-  return Number.isInteger(age) && age >= 1 && age <= 120 ? '' : 'Enter an age between 1 and 120.';
+  if (id === 'name') return value.trim() ? '' : t.nameMissing;
+  const age = value === '' ? NaN : Number(value);
+  return Number.isInteger(age) && age >= 1 && age <= 120 ? '' : t.ageInvalid;
 }
 
 interface OnboardingProps {
@@ -58,7 +60,7 @@ export function Onboarding({ totalSteps = STEPS.length, onComplete }: Onboarding
     <section className="onboarding">
       <form key={step.id} className="question" onSubmit={submit} noValidate>
         <p className="question-count">
-          {stepIndex + 1} / {totalSteps}
+          {t.step(stepIndex + 1, totalSteps)}
         </p>
         <label className="question-text" htmlFor={`answer-${step.id}`}>
           {step.question}
@@ -66,9 +68,11 @@ export function Onboarding({ totalSteps = STEPS.length, onComplete }: Onboarding
         <input
           id={`answer-${step.id}`}
           className="answer"
-          value={answers[step.id]}
+          // Ages are kept as ASCII digits but shown in the language's own, and either can be typed.
+          value={step.id === 'age' ? t.num(answers.age) : answers.name}
           onChange={(event) => {
-            setAnswers({ ...answers, [step.id]: event.target.value });
+            const value = step.id === 'age' ? asciiDigits(event.target.value).replace(/\D/g, '') : event.target.value;
+            setAnswers({ ...answers, [step.id]: value });
             setError('');
           }}
           placeholder={step.placeholder}
@@ -84,7 +88,7 @@ export function Onboarding({ totalSteps = STEPS.length, onComplete }: Onboarding
           {error}
         </p>
         <button type="submit" className="continue">
-          Continue <span aria-hidden="true">↵</span>
+          {t.continue} <span aria-hidden="true">↵</span>
         </button>
       </form>
     </section>

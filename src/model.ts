@@ -17,4 +17,6 @@ export interface Person {
   departAge: number | null;
   /** Hex color for their light and label. */
   color: string;
+  /** One line remembering them, written by the profile owner. */
+  memory?: string;
 }
