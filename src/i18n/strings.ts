@@ -27,6 +27,8 @@ export interface Strings {
   startOverConfirm: string;
   /** The title screen's link to the example life. */
   seeExample: string;
+  /** Said wherever someone might wonder where their family's names go: nowhere. */
+  privacy: string;
   /** Starts a sky of your own from the example being watched. */
   makeItYours: string;
   makeItYoursConfirm: string;

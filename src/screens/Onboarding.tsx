@@ -90,6 +90,7 @@ export function Onboarding({ totalSteps = STEPS.length, onComplete }: Onboarding
         <button type="submit" className="continue">
           {t.continue} <span aria-hidden="true">↵</span>
         </button>
+        <p className="privacy-note is-inline">{t.privacy}</p>
       </form>
     </section>
   );

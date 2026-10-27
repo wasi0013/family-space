@@ -229,6 +229,29 @@ body,
   transform: translateX(4px);
 }
 
+/* Quietly at the foot of the title, and under the first questions: nothing leaves the browser. */
+.privacy-note {
+  position: fixed;
+  left: 16px;
+  right: 16px;
+  /* Clear of the footer's book link below it. */
+  bottom: max(48px, calc(env(safe-area-inset-bottom) + 38px));
+  margin: 0 auto;
+  max-width: 34em;
+  text-align: center;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  color: var(--ink-faint);
+  pointer-events: none;
+  animation: fade-in 1.2s ease 3.2s both;
+}
+
+.privacy-note.is-inline {
+  position: static;
+  margin-top: 28px;
+  animation: fade-in 0.8s ease 0.4s both;
+}
+
 .start-over {
   margin-top: 6px;
   padding: 8px 14px;
@@ -274,6 +297,7 @@ body,
   animation-delay: calc(var(--i) * 18ms);
 }
 
+.is-leaving .privacy-note,
 .is-leaving .tagline,
 .is-leaving .begin,
 .is-leaving .see-example,
@@ -1163,7 +1187,7 @@ body,
   font-size: 14px;
 }
 
-:lang(bn) :is(.start-over, .people-hint, .answer-error, .controls-hint, .touch-hint, .memory-journey, .keep-option-note, .keep-notice, .recording, .person-edit, .question-count) {
+:lang(bn) :is(.privacy-note, .start-over, .people-hint, .answer-error, .controls-hint, .touch-hint, .memory-journey, .keep-option-note, .keep-notice, .recording, .person-edit, .question-count) {
   font-size: 14px;
 }
 

@@ -90,6 +90,7 @@ export function TitleScreen({ returning, onStart, onStartOver, onExample }: Titl
           {confirming ? t.startOverConfirm : t.startOver}
         </button>
       )}
+      <p className="privacy-note">{t.privacy}</p>
     </section>
   );
 }

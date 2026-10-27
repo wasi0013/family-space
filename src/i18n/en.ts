@@ -16,6 +16,7 @@ export const en: Strings = {
   startOver: 'Start a new sky',
   startOverConfirm: 'Erase your sky? Once more to confirm',
   seeExample: 'Or watch an example life',
+  privacy: 'Your sky stays in this browser. Nothing you enter is sent anywhere.',
   makeItYours: 'Make it yours',
   makeItYoursConfirm: 'Replace your sky?',
   backToStart: 'Family Space: back to the start',

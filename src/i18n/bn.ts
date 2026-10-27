@@ -36,6 +36,7 @@ export const bn: Strings = {
   startOver: 'নতুন আকাশ শুরু করুন',
   startOverConfirm: 'আকাশটি মুছে ফেলবেন? নিশ্চিত করতে আবার চাপুন',
   seeExample: 'অথবা একটি উদাহরণ জীবন দেখুন',
+  privacy: 'আপনার আকাশ এই ব্রাউজারেই থাকে। আপনি যা লেখেন, তা কোথাও পাঠানো হয় না।',
   makeItYours: 'নিজের মতো সাজান',
   makeItYoursConfirm: 'আগের আকাশ বদলাবেন?',
   backToStart: 'Family Space: শুরুতে ফিরে যান',
