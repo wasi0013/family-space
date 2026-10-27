@@ -13,6 +13,7 @@ import { asciiDigits, EMPTY_DRAFT, isProblem, nextColor, toDraft, toPerson, type
 
 const ENDINGS: { id: Ending; label: string; withAge: boolean }[] = [
   { id: 'here', label: t.stillHere, withAge: false },
+  { id: 'passing', label: t.passingThrough, withAge: false },
   { id: 'drifted', label: t.driftedAt, withAge: true },
   { id: 'star', label: t.starAt, withAge: true },
 ];

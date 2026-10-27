@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import type { Moment, Person, Profile } from './model';
-import { LANG } from './i18n';
+import { LANG, t } from './i18n';
 import { Scene } from './scene/Scene';
 import { sampleMoments, samplePeople } from './scene/samplePeople';
 import { Moments } from './screens/Moments';
@@ -9,6 +9,9 @@ import { People } from './screens/People';
 import { TitleScreen } from './screens/TitleScreen';
 import { NightSky } from './sky/NightSky';
 import { clearSky, loadSky, saveSky } from './storage';
+
+/** The author's home, linked quietly from the footer of every screen. */
+const HOME_URL = 'https://raisingthegiftedmind.com';
 
 type Phase = 'title' | 'onboarding' | 'people' | 'moments' | 'journey';
 
@@ -130,11 +133,22 @@ export function App() {
           }}
         />
       )}
-      {phase !== 'title' && (
-        <header className="brand" lang="en">
-          Family Space
-        </header>
-      )}
+      <footer className="footer">
+        {phase !== 'title' && (
+          <span className="brand" lang="en">
+            Family Space
+          </span>
+        )}
+        <a className="credit" href={HOME_URL} target="_blank" rel="noopener" aria-label={t.creditLabel}>
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            {/* An open book. */}
+            <path d="M12 6.5C10.2 5.2 7.6 4.6 4 4.8v12.6c3.6-.2 6.2.4 8 1.7 1.8-1.3 4.4-1.9 8-1.7V4.8c-3.6-.2-6.2.4-8 1.7Zm0 0v12.6" />
+          </svg>
+          <span className="credit-name" lang="en">
+            Raising the Gifted Mind
+          </span>
+        </a>
+      </footer>
     </main>
   );
 }

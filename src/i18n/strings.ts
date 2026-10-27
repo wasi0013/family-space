@@ -13,6 +13,8 @@ export interface Strings {
   /** Writes a number, or a string of digits, with this language's digits. */
   num: (n: number | string) => string;
   keys: { space: string; enter: string };
+  /** The footer link to the author's website. */
+  creditLabel: string;
 
   tagline: string;
   beginKeys: [string, string];
@@ -41,6 +43,7 @@ export interface Strings {
   arrivedAgeLabel: string;
   now: string;
   stillHere: string;
+  passingThrough: string;
   driftedAt: string;
   starAt: string;
   leftAgeLabel: (ending: 'drifted' | 'star') => string;

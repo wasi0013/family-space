@@ -5,6 +5,7 @@ export const en: Strings = {
   lang: 'en',
   num: (n) => String(n),
   keys: { space: 'Space', enter: 'Enter' },
+  creditLabel: 'Raising the Gifted Mind, the book behind Family Space (opens in a new tab)',
 
   tagline: 'Your life, written in starlight.',
   beginKeys: ['Press', 'to begin'],
@@ -33,6 +34,7 @@ export const en: Strings = {
   arrivedAgeLabel: 'Age they arrived',
   now: 'Now',
   stillHere: 'still here',
+  passingThrough: 'passing through',
   driftedAt: 'drifted away at',
   starAt: 'became a star at',
   leftAgeLabel: (ending) => `Age they ${ending === 'star' ? 'became a star' : 'drifted away'}`,
@@ -60,16 +62,19 @@ export const en: Strings = {
   },
   lifeSpan: (p) => {
     const from = p.joinAge === 0 ? 'birth' : p.joinAge;
-    if (p.departAge === null) return `${from}–now`;
+    if (p.departAge === null) return `${from}–now${p.bond === 'temporary' ? ' ☄' : ''}`;
     return `${from}–${p.departAge} ${p.bond === 'temporary' ? '↗' : '✦'}`;
   },
   describe: (p) => {
     const since = p.joinAge === 0 ? 'since birth' : `since you were ${p.joinAge}`;
-    if (p.departAge === null) return `${p.name}, with you ${since}, still here`;
+    if (p.departAge === null) return `${p.name}, with you ${since}, ${p.bond === 'temporary' ? 'passing through' : 'still here'}`;
     return `${p.name}, with you ${since}, ${p.bond === 'temporary' ? 'drifted away' : 'became a star'} at ${p.departAge}`;
   },
   journeyLine: (p) => {
-    if (p.departAge === null) return p.joinAge === 0 ? 'With you since birth' : `With you since you were ${p.joinAge}`;
+    if (p.departAge === null) {
+      if (p.bond === 'temporary') return p.joinAge === 0 ? 'Passing through, since birth' : `Passing through, since you were ${p.joinAge}`;
+      return p.joinAge === 0 ? 'With you since birth' : `With you since you were ${p.joinAge}`;
+    }
     const span = p.joinAge === 0 ? `From birth until ${p.departAge}` : `From ${p.joinAge} until ${p.departAge}`;
     return `${span} · ${p.bond === 'temporary' ? 'drifted away' : 'now a star'}`;
   },

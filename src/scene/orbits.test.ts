@@ -223,6 +223,22 @@ describe('people passing through', () => {
     expect(c.y).toBeCloseTo(f.y, 6);
   });
 
+  it('can still be passing through now: close by and partway round at the present', () => {
+    const rafi = person('rafi', 'temporary', 25, null);
+    const scene = layoutScene([mom, rafi], DESKTOP.width, DESKTOP.height, SELF_Y, 32);
+    const now = frameOf(scene, 'rafi', 32)!;
+    expect(Math.hypot(now.x - scene.cx, (now.y - scene.cy) / scene.tilt)).toBeLessThan(scene.minRadius * 1.5);
+    expect(now.orbitRadius).toBeNull();
+    expect(settleAge([rafi], 32)).toBe(32);
+  });
+
+  it('who only just arrived are still on their way in', () => {
+    const rafi = person('rafi', 'temporary', 32, null);
+    const scene = layoutScene([rafi], DESKTOP.width, DESKTOP.height, SELF_Y, 32);
+    const now = frameOf(scene, 'rafi', 32)!;
+    expect(Math.hypot(now.x - scene.cx, (now.y - scene.cy) / scene.tilt)).toBeGreaterThan(scene.reach * 0.5);
+  });
+
   it('move smoothly along their pass', () => {
     const scene = layout([sam]);
     let previous = frameOf(scene, 'sam', 10.5)!;

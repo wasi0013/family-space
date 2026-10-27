@@ -16,8 +16,11 @@ const PERSON_COLORS = [
 ];
 
 export type Arrival = 'birth' | 'later';
-/** How someone's part in the story ends, which also decides how they leave the sky. */
-export type Ending = 'here' | 'drifted' | 'star';
+/**
+ * Where someone is in the story now, which decides how they move through the sky: staying in
+ * orbit, passing by as a comet, gone as a shooting star, or a star among the stars.
+ */
+export type Ending = 'here' | 'passing' | 'drifted' | 'star';
 
 export interface Draft {
   name: string;
@@ -63,7 +66,7 @@ export function toPerson(draft: Draft, maxAge: number, identity: { id: string; c
   }
 
   let departAge: number | null = null;
-  if (draft.ending !== 'here') {
+  if (draft.ending === 'drifted' || draft.ending === 'star') {
     const age = parseAge(draft.departAge);
     if (joinAge >= maxAge) return { kind: 'tooRecent', joinAge };
     if (age === null || age <= joinAge || age > maxAge) {
@@ -72,8 +75,8 @@ export function toPerson(draft: Draft, maxAge: number, identity: { id: string; c
     departAge = age;
   }
 
-  // Whether someone passes through only shows once they have left; until then they stay.
-  return { ...identity, name, bond: draft.ending === 'drifted' ? 'temporary' : 'permanent', joinAge, departAge };
+  const bond = draft.ending === 'drifted' || draft.ending === 'passing' ? 'temporary' : 'permanent';
+  return { ...identity, name, bond, joinAge, departAge };
 }
 
 export function toDraft(person: Person): Draft {
@@ -81,7 +84,14 @@ export function toDraft(person: Person): Draft {
     name: person.name,
     arrival: person.joinAge > 0 ? 'later' : 'birth',
     joinAge: person.joinAge > 0 ? String(person.joinAge) : '',
-    ending: person.departAge === null ? 'here' : person.bond === 'temporary' ? 'drifted' : 'star',
+    ending:
+      person.departAge === null
+        ? person.bond === 'temporary'
+          ? 'passing'
+          : 'here'
+        : person.bond === 'temporary'
+          ? 'drifted'
+          : 'star',
     departAge: person.departAge === null ? '' : String(person.departAge),
   };
 }

@@ -62,6 +62,8 @@ interface Comet {
   arc: number;
   /** 1 to swing anticlockwise, -1 clockwise. */
   spin: number;
+  /** When the pass ends: when they left, or for someone still passing through, a time ahead. */
+  end: number;
 }
 
 export interface Layout {
@@ -106,6 +108,8 @@ export function layoutScene(
   width: number,
   height: number,
   selfY: number,
+  /** The profile owner's age now, for timing passes of people still passing through. */
+  currentAge = Infinity,
 ): Layout {
   const cx = width / 2;
   const cy = height * selfY;
@@ -150,8 +154,9 @@ export function layoutScene(
             y: skyTop + rowHeight * ((m % rows) + 0.5 + (rand() - 0.5) * 0.5),
           };
     const comet =
-      person.bond === 'temporary' && person.departAge !== null
+      person.bond === 'temporary'
         ? {
+            end: person.departAge ?? passingEnd(person, currentAge),
             closest: 0.85 + 0.55 * rand(),
             entry: rand() * Math.PI * 2,
             arc: Math.PI * (0.72 + 0.24 * rand()),
@@ -162,6 +167,16 @@ export function layoutScene(
   });
 
   return { cx, cy, tilt, minRadius, outerRadius, laneGap, reach: Math.hypot(width, height) * 0.4, tracks };
+}
+
+/**
+ * When the pass of someone still passing through would end. It is timed so the present falls a
+ * little past the middle of their swing, so they are close by and partway round now; someone
+ * who has only just arrived is still on their way in.
+ */
+function passingEnd(person: Person, currentAge: number): number {
+  const now = Number.isFinite(currentAge) ? currentAge : person.joinAge + 10;
+  return Math.max(person.joinAge + 1, now + Math.max(1, (now - person.joinAge) * 0.8));
 }
 
 /** How fully someone occupies their lane at `age`: easing in as they arrive, out once they leave. */
@@ -238,7 +253,7 @@ function frameBody(
   const angleAt = (a: number) => track.phase + ((a / YEARS_PER_SECOND + idleSeconds) / track.period) * Math.PI * 2;
   const depart = person.departAge;
 
-  if (track.comet && depart !== null && age < depart) return cometFrame(layout, track, track.comet, age, reshape);
+  if (track.comet && (depart === null || age < depart)) return cometFrame(layout, track, track.comet, age, reshape);
 
   if (depart === null || age < depart) {
     // Arriving bodies spiral in from a wider orbit as they fade up.
@@ -392,7 +407,7 @@ function cometPass(
     return { pos: toScreen(p), angle: Math.atan2(p.y, p.x) };
   };
 
-  const span = person.departAge! - person.joinAge;
+  const span = comet.end - person.joinAge;
   const x = 2 * clamp01((age - person.joinAge) / Math.max(0.01, span)) - 1;
   const paced = Math.sign(x) * (COMET_LINGER * Math.abs(x) + (1 - COMET_LINGER) * Math.abs(x) ** 3);
   return { at: (length * (1 + paced)) / 2, length, pointAt };
@@ -408,7 +423,7 @@ function cometFrame(
   const { person } = track;
   const pass = cometPass(layout, comet, person, age, reshape);
   const { pos, angle } = pass.pointAt(pass.at);
-  const appear = smoothstep(0, Math.min(ARRIVE_YEARS, (person.departAge! - person.joinAge) * 0.15), age - person.joinAge);
+  const appear = smoothstep(0, Math.min(ARRIVE_YEARS, (comet.end - person.joinAge) * 0.15), age - person.joinAge);
   const depth = Math.sin(angle);
   const near = (depth + 1) / 2;
 
@@ -441,7 +456,7 @@ function cometDeparture(
   person: Person,
   reshape: (radius: number, age: number) => number,
 ): { pos: Point; heading: Point } {
-  const pass = cometPass(layout, comet, person, person.departAge!, reshape);
+  const pass = cometPass(layout, comet, person, comet.end, reshape);
   const end = pass.pointAt(pass.length).pos;
   const before = pass.pointAt(pass.length - 1).pos;
   return { pos: end, heading: { x: end.x - before.x, y: end.y - before.y } };

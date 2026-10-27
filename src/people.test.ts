@@ -16,6 +16,14 @@ describe('toPerson', () => {
     });
   });
 
+  it('makes someone passing through temporary, with no age they left yet', () => {
+    expect(toPerson(draft({ name: 'Rafi', arrival: 'later', joinAge: '28', ending: 'passing' }), 32, identity)).toMatchObject({
+      bond: 'temporary',
+      joinAge: 28,
+      departAge: null,
+    });
+  });
+
   it('makes people who drifted away temporary and people who became stars permanent', () => {
     const drifted = toPerson(draft({ name: 'Sam', arrival: 'later', joinAge: '5', ending: 'drifted', departAge: '16' }), 32, identity);
     const star = toPerson(draft({ name: 'Grandma', ending: 'star', departAge: '8' }), 32, identity);
@@ -67,6 +75,7 @@ describe('toDraft', () => {
     draft({ name: 'Mom' }),
     draft({ name: 'Sam', arrival: 'later', joinAge: '5', ending: 'drifted', departAge: '16' }),
     draft({ name: 'Grandma', ending: 'star', departAge: '8' }),
+    draft({ name: 'Rafi', arrival: 'later', joinAge: '28', ending: 'passing' }),
   ])('loads $name back into the form exactly as entered', (entered) => {
     const person = toPerson(entered, 32, identity) as Person;
     expect(toDraft(person)).toEqual(entered);

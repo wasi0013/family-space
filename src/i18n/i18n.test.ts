@@ -33,6 +33,13 @@ describe('English', () => {
     expect(en.journeyLine({ ...mom, joinAge: 22 })).toBe('With you since you were 22');
   });
 
+  it('describes someone passing through', () => {
+    const rafi: Person = { ...base, name: 'Rafi', bond: 'temporary', joinAge: 28, departAge: null };
+    expect(en.lifeSpan(rafi)).toBe('28–now ☄');
+    expect(en.journeyLine(rafi)).toBe('Passing through, since you were 28');
+    expect(bn.journeyLine(rafi)).toBe('২৮ বছর বয়স থেকে আপনার সাথে · কিছুদিনের সঙ্গী');
+  });
+
   it('describes someone in a full sentence', () => {
     expect(en.describe(grandma)).toBe('Grandma, with you since birth, became a star at 8');
     expect(en.describe(sam)).toBe('Sam, with you since you were 5, drifted away at 16');

@@ -321,7 +321,7 @@ export class SceneRenderer {
     this.height = this.canvas.clientHeight;
     this.canvas.width = Math.round(this.width * this.dpr);
     this.canvas.height = Math.round(this.height * this.dpr);
-    this.layout = layoutScene(this.people, this.width, this.height, SELF_Y);
+    this.layout = layoutScene(this.people, this.width, this.height, SELF_Y, this.profile.age);
     const systemBottom = this.layout.cy + this.layout.outerRadius * this.layout.tilt;
     this.constellation = this.moments.length
       ? layoutConstellation(this.width, this.height, systemBottom, this.profile.age)

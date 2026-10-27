@@ -31,10 +31,17 @@ body,
   display: block;
 }
 
-.brand {
+.footer {
   position: fixed;
   left: max(16px, env(safe-area-inset-left));
-  bottom: max(16px, env(safe-area-inset-bottom));
+  bottom: max(12px, calc(env(safe-area-inset-bottom) - 4px));
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 1;
+}
+
+.brand {
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.34em;
@@ -42,6 +49,56 @@ body,
   color: var(--ink-faint);
   pointer-events: none;
   animation: fade-in 1.2s ease 0.4s both;
+}
+
+/* A quiet way to the author's site: an open book, its name sliding out on hover or focus. */
+.credit {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border-radius: 999px;
+  color: var(--ink-faint);
+  text-decoration: none;
+  opacity: 0.75;
+  transition:
+    opacity 0.3s ease,
+    color 0.3s ease;
+  animation: fade-in 1.2s ease 0.8s both;
+}
+
+.credit svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  stroke-linejoin: round;
+}
+
+.credit-name {
+  max-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  font: italic 300 14px/1 var(--font-display);
+  letter-spacing: 0.02em;
+  transition: max-width 0.5s var(--ease-out);
+}
+
+.credit:hover,
+.credit:focus-visible {
+  opacity: 1;
+  color: #ffe2ba;
+  outline: none;
+}
+
+.credit:hover .credit-name,
+.credit:focus-visible .credit-name {
+  max-width: 220px;
+}
+
+.credit:focus-visible {
+  box-shadow: 0 0 0 1px var(--line);
 }
 
 /* ---------- Title ---------- */

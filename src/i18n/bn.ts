@@ -25,6 +25,7 @@ export const bn: Strings = {
   lang: 'bn',
   num,
   keys: { space: 'স্পেস', enter: 'এন্টার' },
+  creditLabel: 'Raising the Gifted Mind, Family Space-এর পেছনের বই (নতুন ট্যাবে খুলবে)',
 
   tagline: 'আপনার জীবন, তারার আলোয় লেখা।',
   beginKeys: ['শুরু করতে', 'চাপুন'],
@@ -53,6 +54,7 @@ export const bn: Strings = {
   arrivedAgeLabel: 'কত বছর বয়স থেকে সাথে আছেন',
   now: 'এখন',
   stillHere: 'এখনও আছেন',
+  passingThrough: 'কিছুদিনের সঙ্গী',
   driftedAt: 'দূরে সরে গেছেন, বয়স',
   starAt: 'তারা হয়ে গেছেন, বয়স',
   leftAgeLabel: (ending) => `কত বছর বয়সে ${left(ending)}`,
@@ -80,17 +82,18 @@ export const bn: Strings = {
   },
   lifeSpan: (p) => {
     const from = p.joinAge === 0 ? 'জন্ম' : num(p.joinAge);
-    if (p.departAge === null) return `${from}–এখন`;
+    if (p.departAge === null) return `${from}–এখন${p.bond === 'temporary' ? ' ☄' : ''}`;
     return `${from}–${num(p.departAge)} ${p.bond === 'temporary' ? '↗' : '✦'}`;
   },
   describe: (p) => {
     const since = p.joinAge === 0 ? 'জন্ম থেকে সাথে' : `${num(p.joinAge)} বছর বয়স থেকে সাথে`;
-    if (p.departAge === null) return `${p.name}, ${since}, এখনও আছেন`;
+    if (p.departAge === null) return `${p.name}, ${since}, ${p.bond === 'temporary' ? 'কিছুদিনের সঙ্গী' : 'এখনও আছেন'}`;
     return `${p.name}, ${since}, ${num(p.departAge)} বছর বয়সে ${p.bond === 'temporary' ? 'দূরে সরে গেছেন' : 'তারা হয়ে গেছেন'}`;
   },
   journeyLine: (p) => {
     if (p.departAge === null) {
-      return p.joinAge === 0 ? 'জন্ম থেকে আপনার সাথে' : `${num(p.joinAge)} বছর বয়স থেকে আপনার সাথে`;
+      const since = p.joinAge === 0 ? 'জন্ম থেকে আপনার সাথে' : `${num(p.joinAge)} বছর বয়স থেকে আপনার সাথে`;
+      return p.bond === 'temporary' ? `${since} · কিছুদিনের সঙ্গী` : since;
     }
     const span =
       p.joinAge === 0
