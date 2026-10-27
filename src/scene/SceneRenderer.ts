@@ -1,4 +1,5 @@
 import type { Person, Profile } from '../model';
+import { skyScroll } from '../sky/skyScroll';
 import { drawBody, drawLabel, drawOrbitPath, drawTrail } from './bodies';
 import {
   clamp01,
@@ -16,6 +17,14 @@ const MAX_DPR = 3;
 export const SELF_Y = 0.56;
 /** Playback starts once the self star has finished igniting. */
 const PLAY_DELAY_S = 2.6;
+/**
+ * The system travels upward through space, shown by the nearer background stars sliding down
+ * past it: faster while the life plays, a slow steady drift once it settles (px per second).
+ */
+const DRIFT_PLAYING = 18;
+const DRIFT_SETTLED = 5;
+/** How quickly the drift eases between those speeds, per second. */
+const DRIFT_EASE = 1.2;
 
 export function selfStarRadius(width: number, height: number): number {
   return Math.min(11, Math.max(6, Math.min(width, height) * 0.014));
@@ -46,6 +55,7 @@ export class SceneRenderer {
   private age: number;
   /** Time spent paused, which keeps the orbits turning. */
   private idleSeconds = 0;
+  private driftSpeed = 0;
   private playing = false;
   private autoplay: boolean;
   private igniteStart = -1;
@@ -135,6 +145,9 @@ export class SceneRenderer {
     } else {
       this.idleSeconds += dt;
     }
+    const target = this.playing ? DRIFT_PLAYING : DRIFT_SETTLED;
+    this.driftSpeed += (target - this.driftSpeed) * Math.min(1, dt * DRIFT_EASE);
+    skyScroll.y += this.driftSpeed * dt;
     this.reportAge();
   }
 

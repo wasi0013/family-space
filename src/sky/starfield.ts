@@ -34,6 +34,8 @@ export interface Star {
   tint: number;
   fill: string;
   twinkle: Twinkle | null;
+  /** Field stars drift with parallax; Milky Way stars sit fixed with the far-off haze. */
+  field: boolean;
 }
 
 /** The Milky Way: a soft diagonal band across the sky. */
@@ -59,7 +61,7 @@ export function generateStars(width: number, height: number, band: Band, seed: n
   const stars: Star[] = [];
 
   for (let i = 0, n = Math.round(area / 420); i < n; i++) {
-    stars.push(makeStar(rand, rand() * width, rand() * height, 12));
+    stars.push({ ...makeStar(rand, rand() * width, rand() * height, 12), field: true });
   }
 
   // The galactic plane is crowded with faint stars that read as texture rather than points.
@@ -72,7 +74,7 @@ export function generateStars(width: number, height: number, band: Band, seed: n
     const x = band.cx + ux * along - uy * across;
     const y = band.cy + uy * along + ux * across;
     if (x < 0 || y < 0 || x > width || y > height) continue;
-    stars.push(makeStar(rand, x, y, 18, 0.22));
+    stars.push({ ...makeStar(rand, x, y, 18, 0.22), field: false });
   }
 
   return stars;
@@ -82,7 +84,7 @@ export function generateStars(width: number, height: number, band: Band, seed: n
  * `skew` shapes the brightness power law: higher means more faint stars and fewer bright ones.
  * `ceiling` caps the brightest a star can be.
  */
-function makeStar(rand: Rand, x: number, y: number, skew: number, ceiling = 1): Star {
+function makeStar(rand: Rand, x: number, y: number, skew: number, ceiling = 1): Omit<Star, 'field'> {
   const brightness = rand() ** skew * ceiling;
   const tint = pickTint(rand());
   // Faint stars look colorless to the eye; only bright ones show their tint.
