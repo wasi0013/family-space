@@ -1,3 +1,4 @@
+import { KIND_GLYPH } from './glyphs';
 import type { Strings } from './strings';
 
 const BENGALI_DIGITS = '০১২৩৪৫৬৭৮৯';
@@ -119,6 +120,13 @@ export const bn: Strings = {
   savingImage: 'মুহূর্তটি সংরক্ষণ হচ্ছে…',
   imageFailed: 'ছবিটি সংরক্ষণ করা যায়নি',
   cannotRecord: 'এই ব্রাউজারে ভিডিও রেকর্ড করা যায় না',
+
+  kind: { milestone: 'অর্জন', home: 'নতুন ঠিকানা', love: 'ভালোবাসা', hardship: 'কঠিন সময়' },
+  momentLine: (m) => `${KIND_GLYPH[m.kind]} ${bn.kind[m.kind]} · ${num(m.age)} বছর বয়সে`,
+  aboutMoment: (title) => `${title} — স্মৃতি`,
+  momentNotePlaceholder: 'এই মুহূর্তটি নিয়ে এক লাইন…',
+  editMomentNote: (title) => `${title} নিয়ে লেখা সম্পাদনা করুন`,
+  addMomentNote: 'এক লাইন লিখুন…',
 
   remembering: (name) => `${objective(name)} স্মরণ`,
   close: 'বন্ধ করুন',

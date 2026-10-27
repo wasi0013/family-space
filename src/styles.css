@@ -534,6 +534,24 @@ body,
   animation: rise-in 1.4s var(--ease-out) 1.6s both;
 }
 
+.hud-moment {
+  min-height: 1.4em;
+  font: italic 300 clamp(1.1rem, 2.4vw, 1.35rem) / 1.2 var(--font-display);
+  color: #fff6e8;
+  text-shadow: 0 0 18px rgba(255, 207, 138, 0.35);
+  /* Rises in as the moment begins, then fades once its caption has passed. */
+  animation: rise-in 0.8s var(--ease-out) both;
+  transition: opacity 0.9s ease;
+}
+
+.hud-moment:empty {
+  animation: none;
+}
+
+.hud-moment.is-leaving {
+  opacity: 0;
+}
+
 .hud-caption {
   font-size: 10px;
   font-weight: 500;

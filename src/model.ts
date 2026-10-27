@@ -4,6 +4,19 @@ export interface Profile {
   age: number;
 }
 
+/** What kind of moment it was, which decides how the sky shows it. */
+export type MomentKind = 'milestone' | 'home' | 'love' | 'hardship';
+
+/** Something that changed the person's sky at one age, such as a move or a graduation. */
+export interface Moment {
+  id: string;
+  title: string;
+  age: number;
+  kind: MomentKind;
+  /** One line about it, written by the profile owner. */
+  note?: string;
+}
+
 /** Temporary people pass through a life; permanent ones stay in memory as stars when they go. */
 export type Bond = 'temporary' | 'permanent';
 

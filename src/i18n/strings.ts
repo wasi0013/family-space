@@ -1,4 +1,4 @@
-import type { Person } from '../model';
+import type { Moment, MomentKind, Person } from '../model';
 import type { DraftProblem } from '../people';
 
 export type Lang = 'en' | 'bn';
@@ -82,6 +82,14 @@ export interface Strings {
   savingImage: string;
   imageFailed: string;
   cannotRecord: string;
+
+  kind: Record<MomentKind, string>;
+  /** A moment's kind and age, as its card says it: "✦ Milestone · age 22". */
+  momentLine: (moment: Moment) => string;
+  aboutMoment: (title: string) => string;
+  momentNotePlaceholder: string;
+  editMomentNote: (title: string) => string;
+  addMomentNote: string;
 
   remembering: (name: string) => string;
   close: string;

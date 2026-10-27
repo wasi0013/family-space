@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState, type CSSProperties, type FormEvent, type KeyboardEvent } from 'react';
-import type { Person } from '../model';
 import { t } from '../i18n';
 import { MEMORY_MAX_LENGTH } from '../people';
 
@@ -8,20 +7,34 @@ const CARD_WIDTH = 300;
 const SHEET_BELOW = 560;
 const GAP = 22;
 
+/** The words a card needs, which differ between a person and a moment. */
+export interface CardWords {
+  dialog: string;
+  placeholder: string;
+  edit: string;
+  add: string;
+}
+
 interface MemoryCardProps {
-  person: Person;
-  /** Where the person was when tapped; the card opens beside them. */
+  title: string;
+  /** Their place in your life, or a moment's kind and age. */
+  line: string;
+  color: string;
+  note: string | undefined;
+  words: CardWords;
+  /** Where the star was when tapped; the card opens beside it. */
   anchor: { x: number; y: number };
-  onSave: (memory: string) => void;
+  onSave: (note: string) => void;
   onClose: () => void;
 }
 
-export function MemoryCard({ person, anchor, onSave, onClose }: MemoryCardProps) {
-  const [editing, setEditing] = useState(!person.memory);
-  const [text, setText] = useState(person.memory ?? '');
+/** A card for one star in the sky, with a line of memory that can be written and edited. */
+export function MemoryCard({ title, line, color, note, words, anchor, onSave, onClose }: MemoryCardProps) {
+  const [editing, setEditing] = useState(!note);
+  const [text, setText] = useState(note ?? '');
   const fieldRef = useRef<HTMLTextAreaElement>(null);
   const cardRef = useRef<HTMLElement>(null);
-  const memory = person.memory?.trim() ?? '';
+  const memory = note?.trim() ?? '';
 
   // Focus lands in the card: in the field while writing, otherwise on the card itself.
   useEffect(() => {
@@ -69,19 +82,19 @@ export function MemoryCard({ person, anchor, onSave, onClose }: MemoryCardProps)
       ref={cardRef}
       tabIndex={-1}
       className="memory-card"
-      style={{ ...place(anchor), '--person-color': person.color } as CSSProperties}
+      style={{ ...place(anchor), '--person-color': color } as CSSProperties}
       role="dialog"
-      aria-label={t.remembering(person.name)}
+      aria-label={words.dialog}
       onKeyDown={onKeyDown}
     >
       <header className="memory-header">
         <span className="person-dot" aria-hidden="true" />
-        <h2 className="memory-name">{person.name}</h2>
+        <h2 className="memory-name">{title}</h2>
         <button type="button" className="memory-close" onClick={onClose} aria-label={t.close}>
           ×
         </button>
       </header>
-      <p className="memory-journey">{t.journeyLine(person)}</p>
+      <p className="memory-journey">{line}</p>
 
       {editing ? (
         <form className="memory-form" onSubmit={save}>
@@ -90,10 +103,10 @@ export function MemoryCard({ person, anchor, onSave, onClose }: MemoryCardProps)
             className="memory-field"
             value={text}
             onChange={(event) => setText(event.target.value.replace(/\n/g, ' '))}
-            placeholder={t.memoryPlaceholder(person.name)}
+            placeholder={words.placeholder}
             maxLength={MEMORY_MAX_LENGTH}
             rows={2}
-            aria-label={t.memoryPlaceholder(person.name)}
+            aria-label={words.placeholder}
           />
           <div className="memory-actions">
             <span className="memory-count" aria-hidden="true">
@@ -105,24 +118,24 @@ export function MemoryCard({ person, anchor, onSave, onClose }: MemoryCardProps)
           </div>
         </form>
       ) : memory ? (
-        <button type="button" className="memory-text" onClick={() => setEditing(true)} aria-label={t.editMemory(person.name)}>
+        <button type="button" className="memory-text" onClick={() => setEditing(true)} aria-label={words.edit}>
           “{memory}”
         </button>
       ) : (
         <button type="button" className="memory-add" onClick={() => setEditing(true)}>
-          {t.addMemory}
+          {words.add}
         </button>
       )}
     </section>
   );
 }
 
-/** Opens beside the person, kept on screen; a bottom sheet on narrow screens. */
+/** Opens beside the star, kept on screen; a bottom sheet on narrow screens. */
 function place(anchor: { x: number; y: number }): CSSProperties {
   const { innerWidth: width, innerHeight: height } = window;
   if (width < SHEET_BELOW) return { left: 16, right: 16, bottom: 'max(132px, calc(env(safe-area-inset-bottom) + 120px))' };
   const left = Math.min(width - CARD_WIDTH - 16, Math.max(16, anchor.x - CARD_WIDTH / 2));
-  // Above the person when there is room, otherwise below them.
+  // Above the star when there is room, otherwise below it.
   return anchor.y > height * 0.45
     ? { left, width: CARD_WIDTH, bottom: height - anchor.y + GAP }
     : { left, width: CARD_WIDTH, top: anchor.y + GAP };

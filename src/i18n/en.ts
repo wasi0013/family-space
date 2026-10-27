@@ -1,3 +1,4 @@
+import { KIND_GLYPH } from './glyphs';
 import type { Strings } from './strings';
 
 export const en: Strings = {
@@ -94,6 +95,13 @@ export const en: Strings = {
   savingImage: 'Saving this moment…',
   imageFailed: 'Couldn’t save the image',
   cannotRecord: 'This browser can’t record video',
+
+  kind: { milestone: 'Milestone', home: 'New home', love: 'Love', hardship: 'Hard time' },
+  momentLine: (m) => `${KIND_GLYPH[m.kind]} ${en.kind[m.kind]} · age ${m.age}`,
+  aboutMoment: (title) => `About ${title}`,
+  momentNotePlaceholder: 'A line about this moment…',
+  editMomentNote: (title) => `Edit the note about ${title}`,
+  addMomentNote: 'Add a note…',
 
   remembering: (name) => `Remembering ${name}`,
   close: 'Close',

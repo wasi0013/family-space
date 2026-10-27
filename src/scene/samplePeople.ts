@@ -1,5 +1,5 @@
 import type { Lang } from '../i18n';
-import type { Bond, Person } from '../model';
+import type { Bond, Moment, MomentKind, Person } from '../model';
 
 type Sample = [name: string, bond: Bond, join: number, depart: number | null, color: string];
 
@@ -71,4 +71,24 @@ export function samplePeople(age: number, cast: Cast = 'family', lang: Lang = 'e
       color,
     };
   });
+}
+
+type SampleMoment = [english: string, bengali: string, at: number, kind: MomentKind];
+
+/** One of each kind, at ages that fit the sample family. */
+const MOMENTS: SampleMoment[] = [
+  ['Started school', 'স্কুলে ভর্তি', 0.19, 'milestone'],
+  ['Moved to Dhaka', 'ঢাকায় চলে এলাম', 0.4, 'home'],
+  ['Graduated', 'স্নাতক পাস', 0.69, 'milestone'],
+  ['Married', 'বিয়ে', 0.81, 'love'],
+  ['Lost my job', 'চাকরি হারালাম', 0.9, 'hardship'],
+];
+
+export function sampleMoments(age: number, lang: Lang = 'en'): Moment[] {
+  return MOMENTS.map(([english, bengali, at, kind]) => ({
+    id: english.toLowerCase().replace(/\W+/g, '-'),
+    title: lang === 'bn' ? bengali : english,
+    age: Math.round(at * age),
+    kind,
+  }));
 }

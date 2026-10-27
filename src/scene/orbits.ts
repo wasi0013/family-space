@@ -53,6 +53,8 @@ export interface Layout {
   tilt: number;
   /** The innermost lane, clear of the self star's glare. */
   minRadius: number;
+  /** The outermost lane in use at the busiest moment of the life. */
+  outerRadius: number;
   laneGap: number;
   /** How far a shooting star flies before it fades; enough to leave the screen. */
   reach: number;
@@ -132,7 +134,7 @@ export function layoutScene(
     return { person, earlier, period, phase, wobble, slot };
   });
 
-  return { cx, cy, tilt, minRadius, laneGap, reach: Math.hypot(width, height) * 0.4, tracks };
+  return { cx, cy, tilt, minRadius, outerRadius, laneGap, reach: Math.hypot(width, height) * 0.4, tracks };
 }
 
 /** How fully someone occupies their lane at `age`: easing in as they arrive, out once they leave. */
@@ -181,16 +183,28 @@ export function settleAge(people: readonly Person[], currentAge: number): number
  * Where everyone is at `age`. Orbits turn at the same slow pace whether playback is running or
  * paused: their clock is the playback time for `age` plus `idleSeconds` spent paused.
  */
-export function frameBodies(layout: Layout, age: number, idleSeconds: number): BodyFrame[] {
+export function frameBodies(
+  layout: Layout,
+  age: number,
+  idleSeconds: number,
+  /** How far everyone is drawn in toward your star at an age, as a share of their lane. */
+  pullAt: (age: number) => number = () => 0,
+): BodyFrame[] {
   const frames: BodyFrame[] = [];
   for (const track of layout.tracks) {
-    const frame = frameBody(layout, track, age, idleSeconds);
+    const frame = frameBody(layout, track, age, idleSeconds, pullAt);
     if (frame) frames.push(frame);
   }
   return frames;
 }
 
-function frameBody(layout: Layout, track: Track, age: number, idleSeconds: number): BodyFrame | null {
+function frameBody(
+  layout: Layout,
+  track: Track,
+  age: number,
+  idleSeconds: number,
+  pullAt: (age: number) => number,
+): BodyFrame | null {
   const { person } = track;
   if (age < person.joinAge) return null;
   const angleAt = (a: number) => track.phase + ((a / YEARS_PER_SECOND + idleSeconds) / track.period) * Math.PI * 2;
@@ -199,7 +213,7 @@ function frameBody(layout: Layout, track: Track, age: number, idleSeconds: numbe
   if (depart === null || age < depart) {
     // Arriving bodies spiral in from a wider orbit as they fade up.
     const e = easeOutCubic(clamp01((age - person.joinAge) / ARRIVE_YEARS));
-    const lane = laneRadius(layout, track, age);
+    const lane = laneRadius(layout, track, age) * (1 - pullAt(age));
     const radius = lane * (1 + 0.9 * (1 - e));
     const theta = angleAt(age) - (1 - e) * 1.2;
     const pos = orbitPoint(layout, radius, theta);
@@ -229,7 +243,7 @@ function frameBody(layout: Layout, track: Track, age: number, idleSeconds: numbe
 
   const since = age - depart;
   const theta = angleAt(depart);
-  const origin = orbitPoint(layout, laneRadius(layout, track, depart), theta);
+  const origin = orbitPoint(layout, laneRadius(layout, track, depart) * (1 - pullAt(depart)), theta);
 
   if (person.bond === 'temporary') {
     if (since >= SHOOT_YEARS) return null;

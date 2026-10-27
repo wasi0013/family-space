@@ -1,6 +1,31 @@
-import type { Person, Profile } from '../model';
+import type { Moment, Person, Profile } from '../model';
 import { skyScroll } from '../sky/skyScroll';
 import { drawBody, drawFocus, drawLabels, drawOrbitPath, drawTrail } from './bodies';
+import { drawConstellation } from './constellation';
+import {
+  auroraStrength,
+  drawAurora,
+  drawLoveGlow,
+  drawShadow,
+  drawSpark,
+  flareAt,
+  HARDSHIP_PULL,
+  hardshipDepth,
+  loveGlow,
+  skyAngle,
+  sparkProgress,
+} from './phenomena';
+import {
+  captionAt,
+  layoutConstellation,
+  litMoments,
+  momentPoint,
+  momentsSettleAge,
+  nowPoint,
+  playbackSpeed,
+  type Constellation,
+  type MomentPoint,
+} from './momentSky';
 import {
   clamp01,
   frameBodies,
@@ -39,6 +64,8 @@ export interface SceneOptions {
   onAge: (age: number) => void;
   /** Called when playback starts or stops, counting a pending autoplay as playing. */
   onPlayingChange: (playing: boolean) => void;
+  /** Called with the moment to caption as one begins, and null once its caption has passed. */
+  onMoment: (moment: Moment | null) => void;
 }
 
 /**
@@ -49,9 +76,10 @@ export class SceneRenderer {
   private readonly ctx: CanvasRenderingContext2D;
   private readonly motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
   private readonly resizeObserver = new ResizeObserver(() => this.resize());
-  /** Playback runs a little past the current age so recent departures can finish. */
+  /** Playback runs a little past the current age so recent departures and moments can finish. */
   private readonly endAge: number;
   private layout: Layout | null = null;
+  private constellation: Constellation | null = null;
   private width = 0;
   private height = 0;
   private dpr = 1;
@@ -70,24 +98,29 @@ export class SceneRenderer {
   private shownPlaying: boolean | null = null;
   /** Everyone as last drawn, for finding who was tapped. */
   private lastFrames: BodyFrame[] = [];
+  private lastPoints: MomentPoint[] = [];
   private focusId: string | null = null;
+  private shownMoment: Moment | null | undefined = undefined;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
     private readonly profile: Profile,
     private readonly people: readonly Person[],
+    private readonly moments: readonly Moment[],
     private readonly options: SceneOptions,
   ) {
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('Canvas 2D is not supported');
     this.ctx = ctx;
-    this.endAge = settleAge(people, profile.age);
+    this.endAge = Math.max(settleAge(people, profile.age), momentsSettleAge(moments, profile.age));
     this.autoplay = options.initialAge === undefined;
     this.igniting = options.initialAge === undefined;
     this.age = options.initialAge === undefined ? 0 : Math.min(this.endAge, Math.max(0, options.initialAge));
   }
 
   start() {
+    // The sky turns around your star when you move home.
+    skyScroll.pivotY = SELF_Y;
     this.resize();
     this.resizeObserver.observe(this.canvas);
     this.motionQuery.addEventListener('change', this.play);
@@ -98,6 +131,8 @@ export class SceneRenderer {
 
   dispose() {
     cancelAnimationFrame(this.frameId);
+    skyScroll.dim = 0;
+    skyScroll.angle = 0;
     this.resizeObserver.disconnect();
     this.motionQuery.removeEventListener('change', this.play);
   }
@@ -170,6 +205,20 @@ export class SceneRenderer {
     return nearest && { person: nearest.person, x: nearest.x, y: nearest.y };
   }
 
+  /** The moment star drawn nearest a point on screen, if a tap there would pick it. */
+  momentAt(x: number, y: number): { moment: Moment; x: number; y: number } | null {
+    let nearest: MomentPoint | null = null;
+    let nearestDistance = HIT_RADIUS;
+    for (const point of this.lastPoints) {
+      const distance = Math.hypot(point.x - x, point.y - y);
+      if (point.lit > 0.25 && distance < nearestDistance) {
+        nearest = point;
+        nearestDistance = distance;
+      }
+    }
+    return nearest && { moment: nearest.moment, x: nearest.x, y: nearest.y };
+  }
+
   step(years: number) {
     this.seek(Math.min(this.profile.age, Math.round(this.age) + years));
   }
@@ -215,7 +264,9 @@ export class SceneRenderer {
 
   private advance(dt: number) {
     if (this.playing) {
-      this.age = Math.min(this.endAge, this.age + dt * YEARS_PER_SECOND);
+      // Time slows around each moment so it can be felt and its caption read.
+      const speed = YEARS_PER_SECOND * playbackSpeed(this.moments, this.age);
+      this.age = Math.min(this.endAge, this.age + dt * speed);
       if (this.age >= this.endAge) this.playing = false;
     } else {
       this.idleSeconds += dt;
@@ -225,6 +276,13 @@ export class SceneRenderer {
     skyScroll.y += this.driftSpeed * dt;
     this.reportAge();
     this.reportPlaying();
+  }
+
+  private reportMoment() {
+    const moment = captionAt(this.moments, this.age);
+    if (moment === this.shownMoment) return;
+    this.shownMoment = moment;
+    this.options.onMoment(moment);
   }
 
   private reportPlaying() {
@@ -241,6 +299,7 @@ export class SceneRenderer {
     this.options.onAge(shown);
   }
 
+
   private resize() {
     this.dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR);
     this.width = this.canvas.clientWidth;
@@ -248,6 +307,10 @@ export class SceneRenderer {
     this.canvas.width = Math.round(this.width * this.dpr);
     this.canvas.height = Math.round(this.height * this.dpr);
     this.layout = layoutScene(this.people, this.width, this.height, SELF_Y);
+    const systemBottom = this.layout.cy + this.layout.outerRadius * this.layout.tilt;
+    this.constellation = this.moments.length
+      ? layoutConstellation(this.width, this.height, systemBottom, this.profile.age)
+      : null;
     this.redrawIfStill();
   }
 
@@ -257,6 +320,7 @@ export class SceneRenderer {
 
   private drawStill() {
     this.draw(0, SETTLED);
+    skyScroll.redraw?.();
   }
 
   private draw(seconds: number, ig: Ignition) {
@@ -266,8 +330,22 @@ export class SceneRenderer {
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    const frames = frameBodies(layout, this.age, this.idleSeconds);
+    skyScroll.angle = skyAngle(this.moments, this.age);
+    drawLoveGlow(ctx, width, height, loveGlow(this.moments, this.age));
+    drawAurora(ctx, width, height, auroraStrength(this.moments, this.age), seconds);
+
+    // A hard time darkens the sky and draws the people around you closer and brighter.
+    const hardship = hardshipDepth(this.moments, this.age);
+    skyScroll.dim = 0.42 * hardship;
+    const frames = frameBodies(layout, this.age, this.idleSeconds, (age) => HARDSHIP_PULL * hardshipDepth(this.moments, age));
+    if (hardship > 0) for (const frame of frames) if (frame.orbitRadius !== null) frame.scale *= 1 + 0.3 * hardship;
     this.lastFrames = frames;
+    this.reportMoment();
+
+    if (this.constellation) {
+      this.lastPoints = litMoments(this.constellation, this.moments, this.age);
+      drawConstellation(ctx, this.constellation, this.lastPoints, nowPoint(this.constellation, this.age), seconds, this.focusId);
+    }
     const far = frames.filter((f) => f.depth < 0);
     const near = frames.filter((f) => f.depth >= 0);
 
@@ -277,9 +355,24 @@ export class SceneRenderer {
     this.drawBodies(far, seconds);
     ctx.restore();
 
-    // The star swells a little as its life goes on.
+    // The star swells a little as its life goes on, flares at a milestone, and dims in a hard time.
     const growth = 0.55 + 0.45 * clamp01(this.age / Math.max(1, this.profile.age));
-    drawSelfStar(ctx, width / 2, height * SELF_Y, selfStarRadius(width, height) * growth, seconds, ig);
+    const radius = selfStarRadius(width, height) * growth;
+    const self = { x: width / 2, y: height * SELF_Y };
+    const flare = flareAt(this.moments, this.age);
+    const lit = flare && ig.ring >= 1 ? { ...ig, flash: Math.max(ig.flash, flare.flash), ring: flare.ring } : ig;
+    ctx.save();
+    ctx.globalAlpha = 1 - 0.6 * hardship;
+    drawSelfStar(ctx, self.x, self.y, radius * (1 - 0.15 * hardship), seconds, lit);
+    ctx.restore();
+    drawShadow(ctx, self.x, self.y, radius, hardship);
+
+    if (this.constellation) {
+      for (const moment of this.moments) {
+        const progress = sparkProgress(moment, this.age);
+        if (progress !== null) drawSpark(ctx, self, momentPoint(this.constellation, moment), progress);
+      }
+    }
 
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';

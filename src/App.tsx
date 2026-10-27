@@ -1,8 +1,8 @@
 import { useRef, useState } from 'react';
-import type { Person, Profile } from './model';
+import type { Moment, Person, Profile } from './model';
 import { LANG } from './i18n';
 import { Scene } from './scene/Scene';
-import { samplePeople } from './scene/samplePeople';
+import { sampleMoments, samplePeople } from './scene/samplePeople';
 import { Onboarding } from './screens/Onboarding';
 import { People } from './screens/People';
 import { TitleScreen } from './screens/TitleScreen';
@@ -40,8 +40,11 @@ export function App() {
       ? samplePeople(DEMO_PROFILE!.age, params.get('cast') === 'crowd' ? 'crowd' : 'family', LANG)
       : (SAVED?.people ?? null),
   );
-  const persist = (next: Profile, nextPeople: Person[] | null) => {
-    if (!DEMO_PROFILE) saveSky({ profile: next, people: nextPeople });
+  const [moments, setMoments] = useState<Moment[]>(() =>
+    params.has('demo') ? sampleMoments(DEMO_PROFILE!.age, LANG) : (SAVED?.moments ?? []),
+  );
+  const persist = (next: Profile, nextPeople: Person[] | null, nextMoments: Moment[] = moments) => {
+    if (!DEMO_PROFILE) saveSky({ profile: next, people: nextPeople, moments: nextMoments });
   };
 
   return (
@@ -56,6 +59,7 @@ export function App() {
             clearSky();
             setProfile(null);
             setPeople(null);
+            setMoments([]);
             setPhase('onboarding');
           }}
         />
@@ -88,6 +92,7 @@ export function App() {
         <Scene
           profile={profile}
           people={people ?? []}
+          moments={moments}
           initialAge={SEEK_AGE}
           skyRef={skyRef}
           onEditPeople={() => setPhase('people')}
@@ -95,6 +100,11 @@ export function App() {
             const next = (people ?? []).map((p) => (p.id === id ? { ...p, memory: memory || undefined } : p));
             setPeople(next);
             persist(profile, next);
+          }}
+          onNote={(id, note) => {
+            const next = moments.map((m) => (m.id === id ? { ...m, note: note || undefined } : m));
+            setMoments(next);
+            persist(profile, people, next);
           }}
         />
       )}
