@@ -23,6 +23,8 @@ export interface Layers {
 export interface Caption {
   name: string;
   age: number;
+  /** The moment playing now, named above the age as on screen. */
+  moment?: string;
 }
 
 function videoType(): string | null {
@@ -74,6 +76,16 @@ function drawCaption(ctx: CanvasRenderingContext2D, caption: Caption, k: number)
   ctx.letterSpacing = tracking(3.2 * k);
   ctx.fillStyle = 'rgba(220, 228, 255, 0.5)';
   ctx.fillText(t.ageCaption(caption.name).toUpperCase(), width / 2, ageBaseline - 52 * k);
+
+  if (caption.moment) {
+    ctx.letterSpacing = '0px';
+    ctx.font = `${t.lang === 'bn' ? '' : 'italic '}300 ${21 * k}px ${FONT_DISPLAY}`;
+    ctx.fillStyle = 'rgba(255, 246, 232, 0.94)';
+    ctx.shadowColor = 'rgba(255, 207, 138, 0.35)';
+    ctx.shadowBlur = 18 * k;
+    ctx.fillText(caption.moment, width / 2, ageBaseline - 74 * k);
+    ctx.shadowBlur = 0;
+  }
 
   ctx.textAlign = 'left';
   ctx.font = `500 ${11 * k}px ${FONT_UI}`;

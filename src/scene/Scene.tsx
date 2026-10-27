@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { t } from '../i18n';
 import { Keep } from '../keep/Keep';
 import type { Moment, Person, Profile } from '../model';
+import { EditMenu } from './EditMenu';
 import { MemoryCard } from './MemoryCard';
 import { SceneRenderer } from './SceneRenderer';
 
@@ -18,6 +19,7 @@ interface SceneProps {
   /** The night sky behind the scene, composed into exported images and videos. */
   skyRef: RefObject<HTMLCanvasElement | null>;
   onEditPeople: () => void;
+  onEditMoments: () => void;
   /** Saves one person's memory; an empty string removes it. */
   onRemember: (personId: string, memory: string) => void;
   /** Saves a moment's note; an empty string removes it. */
@@ -37,7 +39,7 @@ function isTyping(target: EventTarget | null): boolean {
   return target instanceof HTMLElement && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName));
 }
 
-export function Scene({ profile, people, moments, initialAge, skyRef, onEditPeople, onRemember, onNote }: SceneProps) {
+export function Scene({ profile, people, moments, initialAge, skyRef, onEditPeople, onEditMoments, onRemember, onNote }: SceneProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const ageRef = useRef<HTMLSpanElement>(null);
   const rendererRef = useRef<SceneRenderer | null>(null);
@@ -174,9 +176,7 @@ export function Scene({ profile, people, moments, initialAge, skyRef, onEditPeop
       </div>
       <div className="scene-actions">
         <Keep profile={profile} skyRef={skyRef} sceneRef={canvasRef} rendererRef={rendererRef} />
-        <button type="button" className="scene-action" onClick={onEditPeople}>
-          {t.editPeople}
-        </button>
+        <EditMenu onEditPeople={onEditPeople} onEditMoments={onEditMoments} />
       </div>
       {rememberedPerson && remembering && (
         <MemoryCard

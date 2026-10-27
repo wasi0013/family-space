@@ -141,6 +141,11 @@ export class SceneRenderer {
     return this.age;
   }
 
+  /** The title of the moment captioned now, for exports. */
+  get momentCaption(): string | null {
+    return captionAt(this.moments, this.age)?.title ?? null;
+  }
+
   /** Lets the caller size a scrub gesture to the whole life. */
   get lifespan(): number {
     return this.endAge;

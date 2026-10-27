@@ -1,4 +1,5 @@
 import type { Moment, MomentKind, Person } from '../model';
+import type { MomentProblem } from '../moments';
 import type { DraftProblem } from '../people';
 
 export type Lang = 'en' | 'bn';
@@ -83,6 +84,27 @@ export interface Strings {
   imageFailed: string;
   cannotRecord: string;
 
+  askMoments: string;
+  momentsLede: string;
+  optional: string;
+  momentTitlePlaceholder: string;
+  anotherMoment: string;
+  atAge: string;
+  momentAgeLabel: string;
+  momentKindLabel: string;
+  /** "“moved” suggested New home", shown when a word in the title picked the kind. */
+  guessed: (kind: MomentKind) => string;
+  enterToAddMoment: string;
+  enterToSaveMoment: string;
+  enterToFinish: string;
+  skipMoments: string;
+  momentsInSky: string;
+  editMoment: (title: string) => string;
+  removeMoment: (title: string) => string;
+  momentProblem: (problem: MomentProblem) => string;
+  edit: string;
+  editMoments: string;
+  done: string;
   kind: Record<MomentKind, string>;
   /** A moment's kind and age, as its card says it: "✦ Milestone · age 22". */
   momentLine: (moment: Moment) => string;

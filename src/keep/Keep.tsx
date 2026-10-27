@@ -31,6 +31,7 @@ export function Keep({ profile, skyRef, sceneRef, rendererRef }: KeepProps) {
   const caption = (): Caption => ({
     name: profile.name,
     age: Math.min(profile.age, Math.floor(rendererRef.current?.currentAge ?? profile.age)),
+    moment: rendererRef.current?.momentCaption ?? undefined,
   });
 
   const tell = (message: string) => setNotice(message);

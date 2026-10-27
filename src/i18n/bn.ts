@@ -102,7 +102,7 @@ export const bn: Strings = {
   ageCaption: (name) => `${name} · বয়স`,
   play: 'চালান',
   pause: 'থামান',
-  editPeople: 'মানুষদের সম্পাদনা',
+  editPeople: 'মানুষেরা',
   hint: { pause: 'থামান', step: 'এক বছর করে', drag: 'টেনে সময়ে ঘুরুন', remember: 'মনে করতে তারায় ক্লিক করুন' },
   touchHint: 'মনে করতে তারায় ট্যাপ করুন · বছরগুলোর মধ্যে টেনে যান',
 
@@ -121,6 +121,29 @@ export const bn: Strings = {
   imageFailed: 'ছবিটি সংরক্ষণ করা যায়নি',
   cannotRecord: 'এই ব্রাউজারে ভিডিও রেকর্ড করা যায় না',
 
+  askMoments: 'কোন মুহূর্তগুলো আপনার আকাশ বদলে দিয়েছিল?',
+  momentsLede: 'নতুন ঠিকানা, কোনো অর্জন, ভালোবাসা, কিংবা কঠিন একটি বছর।',
+  optional: 'ঐচ্ছিক',
+  momentTitlePlaceholder: 'ঢাকায় চলে এলাম',
+  anotherMoment: 'আরও একটি মুহূর্ত',
+  atAge: 'বয়স তখন',
+  momentAgeLabel: 'তখন আপনার বয়স',
+  momentKindLabel: 'কেমন মুহূর্ত',
+  guessed: (kind) => `মনে হচ্ছে: ${bn.kind[kind]}`,
+  enterToAddMoment: 'যোগ করতে এন্টার চাপুন',
+  enterToSaveMoment: 'পরিবর্তন রাখতে এন্টার চাপুন',
+  enterToFinish: 'শুরু করতে লাইন খালি রেখে এন্টার চাপুন',
+  skipMoments: 'এখন থাক',
+  momentsInSky: 'আপনার আকাশের মুহূর্তগুলো',
+  editMoment: (title) => `সম্পাদনা করুন: ${title}`,
+  removeMoment: (title) => `সরান: ${title}`,
+  momentProblem: (problem) =>
+    problem.kind === 'title'
+      ? 'কী ঘটেছিল, কয়েকটি শব্দে লিখুন।'
+      : `তখন আপনার বয়স কত ছিল, তা ${num(0)} থেকে ${num(problem.max)}-এর মধ্যে লিখুন।`,
+  edit: 'সম্পাদনা',
+  editMoments: 'মুহূর্তগুলো',
+  done: 'শেষ',
   kind: { milestone: 'অর্জন', home: 'নতুন ঠিকানা', love: 'ভালোবাসা', hardship: 'কঠিন সময়' },
   momentLine: (m) => `${KIND_GLYPH[m.kind]} ${bn.kind[m.kind]} · ${num(m.age)} বছর বয়সে`,
   aboutMoment: (title) => `${title} — স্মৃতি`,
