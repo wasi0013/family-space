@@ -1,7 +1,8 @@
 /**
- * Your star ages with you, as a real star does: hot and blue-white when young, a sun-like yellow
- * through midlife, then after about 55 it cools to orange and slowly swells into a red giant.
- * Everything is worked out from the age being played.
+ * Your star ages with you, as a real star does: hot and blue-white when young, gold in its prime,
+ * then from about 40 it cools and swells into a red giant, and past 80 into a red supergiant like
+ * Betelgeuse, vast, deep orange-red and slowly pulsing. Everything is worked out from the age
+ * being played.
  */
 
 export type RGB = readonly [number, number, number];
@@ -17,40 +18,47 @@ export interface StarStage {
   scale: number;
   /** 0 → 1: how far it has become a red giant, with a softer, larger, mottled glow. */
   giant: number;
+  /** 0 → 1: how far it has become a red supergiant, pulsing slowly inside a vast red envelope. */
+  supergiant: number;
 }
 
 /** Temperature through a life: [age, kelvin]. */
 const TEMPERATURE: [number, number][] = [
   [0, 11000],
-  [12, 8000],
-  [25, 6300],
-  [40, 5600],
-  [55, 5250],
-  [65, 4500],
-  [75, 3800],
-  [88, 3300],
+  [10, 8200],
+  [22, 6200],
+  [38, 5500],
+  [50, 4700],
+  [62, 4000],
+  [75, 3600],
+  [90, 3300],
+  [100, 3100],
 ];
 
 /** Size through a life: [age, scale]. */
 const SIZE: [number, number][] = [
   [0, 0.72],
-  [18, 0.9],
-  [30, 1],
-  [55, 1.06],
-  [65, 1.35],
-  [75, 1.85],
-  [90, 2.35],
+  [15, 0.9],
+  [25, 1],
+  [38, 1.06],
+  [50, 1.45],
+  [65, 2.1],
+  [80, 3],
+  [100, 4.5],
 ];
 
 export function stageAt(age: number): StarStage {
   const kelvin = along(TEMPERATURE, age);
   const light = kelvinToRgb(kelvin);
+  const supergiant = smooth(clamp01((age - 78) / 17));
   return {
     kelvin,
     light,
-    glow: saturate(light, 1.9),
+    // A supergiant's light reddens further through the dust it has thrown off.
+    glow: saturate(light, 1.9 + 0.5 * supergiant),
     scale: along(SIZE, age),
-    giant: smooth(clamp01((5250 - kelvin) / 1700)),
+    giant: smooth(clamp01((5450 - kelvin) / 1700)),
+    supergiant,
   };
 }
 

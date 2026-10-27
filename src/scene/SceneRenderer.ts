@@ -39,7 +39,7 @@ import {
   type Layout,
 } from './orbits';
 import { drawSelfStar, ignition, SETTLED, type Ignition } from './selfStar';
-import { stageAt } from './stellar';
+import { stageAt, type StarStage } from './stellar';
 
 const MAX_DPR = 3;
 /** How close a tap must land to a person to pick them, in CSS pixels. */
@@ -355,7 +355,7 @@ export class SceneRenderer {
     // As your star swells into a giant, everyone's orbit widens to make room.
     const starRadius = selfStarRadius(width, height);
     const frames = frameBodies(layout, this.age, this.idleSeconds, (lane, age) => {
-      const swell = starRadius * (stageAt(age).scale - 1) * 2.4;
+      const swell = starRadius * (this.stageAt(age).scale - 1) * 2.4;
       return (lane + swell) * (1 - HARDSHIP_PULL * hardshipDepth(this.moments, age));
     });
     if (hardship > 0) for (const frame of frames) if (frame.orbitRadius !== null) frame.scale *= 1 + 0.3 * hardship;
@@ -376,7 +376,7 @@ export class SceneRenderer {
     ctx.restore();
 
     // The star ages with you, flares at a milestone, and dims in a hard time and in grief.
-    const stage = stageAt(this.age);
+    const stage = this.stageAt(this.age);
     const radius = selfStarRadius(width, height);
     const grief = griefAt(this.people, this.age);
     // Grief makes the light waver as well as fade.
@@ -405,6 +405,13 @@ export class SceneRenderer {
     ctx.restore();
 
     drawLabels(ctx, frames, this.focusId);
+  }
+
+  /** The star's stage at an age, its size capped so a supergiant never crowds out a small screen. */
+  private stageAt(age: number): StarStage {
+    const stage = stageAt(age);
+    const cap = (Math.min(this.width, this.height) * 0.065) / (selfStarRadius(this.width, this.height) * 1.15);
+    return stage.scale > cap ? { ...stage, scale: cap } : stage;
   }
 
   private drawBodies(frames: readonly BodyFrame[], seconds: number) {

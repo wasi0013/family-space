@@ -48,9 +48,11 @@ export function drawSelfStar(
 ) {
   if (ig.grow <= 0) return;
   const breath = Math.sin((seconds * Math.PI * 2) / BREATH_PERIOD_S);
-  const size = radius * stage.scale * ig.grow * (1 + 0.035 * breath);
-  const glow = Math.min(1, ig.grow) * (0.92 + 0.08 * breath) + ig.flash * 0.9;
-  const { giant } = stage;
+  const { giant, supergiant } = stage;
+  // A supergiant pulses slowly and unevenly in size and light, as Betelgeuse does.
+  const pulse = supergiant * (0.6 * Math.sin(seconds * 0.21) + 0.4 * Math.sin(seconds * 0.083 + 1.9));
+  const size = radius * stage.scale * ig.grow * (1 + 0.035 * breath + 0.06 * pulse);
+  const glow = (Math.min(1, ig.grow) * (0.92 + 0.08 * breath) + ig.flash * 0.9) * (1 + 0.12 * pulse);
   const tint = rgbText(stage.glow);
   // The halo and glare widen only gently with the star, so a giant fills the sky without
   // swallowing the people around it.
@@ -65,6 +67,8 @@ export function drawSelfStar(
     [0.55, `rgba(${tint}, ${0.012 * glow})`],
     [1, `rgba(${tint}, 0)`],
   ]);
+  if (supergiant > 0.01) drawEnvelope(ctx, x, y, size, seconds, stage);
+
   // Bloom: a gaussian falloff, so it has no visible edge however large the star grows.
   gaussianDisc(ctx, x, y, size * (5.5 + 1.5 * giant), rgbText(towardWhite(stage.glow, 0.5 - 0.3 * giant)), (0.6 - 0.25 * giant) * glow);
 
@@ -92,6 +96,21 @@ export function drawSelfStar(
 
   if (ig.ring > 0 && ig.ring < 1) drawShockwave(ctx, x, y, radius, ig.ring, tint);
   ctx.restore();
+}
+
+/**
+ * A supergiant's vast envelope: gas and dust thrown off over its life, a faint uneven red haze
+ * several times its size, with lopsided plumes that drift slowly around it.
+ */
+function drawEnvelope(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, seconds: number, stage: StarStage) {
+  const red = rgbText(stage.glow);
+  const strength = stage.supergiant;
+  gaussianDisc(ctx, x, y, size * 9, red, 0.13 * strength);
+  for (let i = 0; i < 5; i++) {
+    const angle = i * 1.26 + seconds * (0.012 + 0.004 * i) + Math.sin(seconds * 0.05 + i) * 0.3;
+    const distance = size * (1.6 + 0.5 * Math.sin(seconds * 0.07 + i * 2.1));
+    gaussianDisc(ctx, x + Math.cos(angle) * distance, y + Math.sin(angle) * distance, size * (2.6 + 0.6 * (i % 2)), red, 0.07 * strength);
+  }
 }
 
 /**
