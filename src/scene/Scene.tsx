@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
-import { resumeAfterSwitch, switchLanguageUrl, t } from '../i18n';
+import { t } from '../i18n';
 import { Keep } from '../keep/Keep';
 import type { Moment, Person, Profile } from '../model';
 import { EditMenu } from './EditMenu';
@@ -177,10 +177,6 @@ export function Scene({ profile, people, moments, initialAge, skyRef, onEditPeop
       <div className="scene-actions">
         <Keep profile={profile} skyRef={skyRef} sceneRef={canvasRef} rendererRef={rendererRef} />
         <EditMenu onEditPeople={onEditPeople} onEditMoments={onEditMoments} />
-        {/* The other language's name, in its own script; the sky is saved, so the reload keeps it. */}
-        <a className="scene-action lang-toggle" href={switchLanguageUrl()} lang={t.lang === 'bn' ? 'en' : 'bn'} aria-label={t.switchLanguage} onClick={resumeAfterSwitch}>
-          {t.otherLanguage}
-        </a>
       </div>
       {rememberedPerson && remembering && (
         <MemoryCard

@@ -466,18 +466,6 @@ body,
     0 0 2px #fff;
 }
 
-.lang-toggle {
-  display: inline-block;
-  text-decoration: none;
-}
-
-/* Bengali in the English toggle needs neither capitals nor tracking. */
-.lang-toggle:lang(bn) {
-  font-size: 13px;
-  letter-spacing: normal;
-  text-transform: none;
-}
-
 .edit-menu {
   width: 180px;
 }

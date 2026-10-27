@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import type { Moment, Person, Profile } from './model';
-import { LANG, takeResume } from './i18n';
+import { LANG } from './i18n';
 import { Scene } from './scene/Scene';
 import { sampleMoments, samplePeople } from './scene/samplePeople';
 import { Moments } from './screens/Moments';
@@ -30,9 +30,7 @@ const SAVED = DEMO_PROFILE ? null : loadSky();
 function initialPhase(): Phase {
   if (params.has('people')) return 'people';
   if (params.has('moments')) return 'moments';
-  if (params.has('demo')) return 'journey';
-  // Switching language from the sky reopens the sky.
-  return takeResume() && SAVED?.people ? 'journey' : 'title';
+  return params.has('demo') ? 'journey' : 'title';
 }
 
 export function App() {

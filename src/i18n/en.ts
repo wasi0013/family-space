@@ -5,8 +5,6 @@ export const en: Strings = {
   lang: 'en',
   num: (n) => String(n),
   keys: { space: 'Space', enter: 'Enter' },
-  otherLanguage: 'বাংলা',
-  switchLanguage: 'Switch to Bengali',
 
   tagline: 'Your life, written in starlight.',
   beginKeys: ['Press', 'to begin'],
