@@ -1,6 +1,6 @@
 import type { Person, Profile } from '../model';
 import { skyScroll } from '../sky/skyScroll';
-import { drawBody, drawLabel, drawOrbitPath, drawTrail } from './bodies';
+import { drawBody, drawLabels, drawOrbitPath, drawTrail } from './bodies';
 import {
   clamp01,
   frameBodies,
@@ -232,7 +232,7 @@ export class SceneRenderer {
     this.drawBodies(near, seconds);
     ctx.restore();
 
-    for (const frame of frames) drawLabel(ctx, frame);
+    drawLabels(ctx, frames);
   }
 
   private drawBodies(frames: readonly BodyFrame[], seconds: number) {

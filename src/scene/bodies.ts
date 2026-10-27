@@ -1,5 +1,4 @@
 import type { BodyFrame, Layout } from './orbits';
-import { TILT } from './orbits';
 import { drawSpikes, glowDisc } from './selfStar';
 
 const LABEL_PX = 12;
@@ -22,7 +21,7 @@ function rgb(hex: string, lighten = 0): string {
 export function drawOrbitPath(ctx: CanvasRenderingContext2D, layout: Layout, frame: BodyFrame) {
   if (frame.orbitRadius === null) return;
   ctx.beginPath();
-  ctx.ellipse(layout.cx, layout.cy, frame.orbitRadius, frame.orbitRadius * TILT, 0, 0, Math.PI * 2);
+  ctx.ellipse(layout.cx, layout.cy, frame.orbitRadius, frame.orbitRadius * layout.tilt, 0, 0, Math.PI * 2);
   ctx.strokeStyle = `rgba(${rgb(frame.person.color)}, ${0.07 * frame.trailAlpha})`;
   ctx.lineWidth = 1;
   ctx.stroke();
@@ -98,11 +97,48 @@ export function drawBody(ctx: CanvasRenderingContext2D, frame: BodyFrame, second
   ]);
 }
 
-export function drawLabel(ctx: CanvasRenderingContext2D, frame: BodyFrame) {
-  if (frame.labelAlpha <= 0.01) return;
-  ctx.font = `500 ${LABEL_PX}px "Inter Variable", ui-sans-serif, system-ui, sans-serif`;
+const LABEL_FONT = `500 ${LABEL_PX}px "Inter Variable", ui-sans-serif, system-ui, sans-serif`;
+/** Labels that can't find clear space fade back to this much of their opacity. */
+const CROWDED_LABEL_ALPHA = 0.3;
+
+interface Box {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+}
+
+/**
+ * Names go above their star, or below it when that space is taken, so passing people never
+ * print over each other. The most visible labels claim space first; any that still can't fit
+ * fade back.
+ */
+export function drawLabels(ctx: CanvasRenderingContext2D, frames: readonly BodyFrame[]) {
+  ctx.font = LABEL_FONT;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'alphabetic';
-  ctx.fillStyle = `rgba(${rgb(frame.person.color, 0.3)}, ${0.92 * frame.labelAlpha})`;
-  ctx.fillText(frame.person.name, frame.x, frame.y - 14 * frame.scale);
+  const claimed: Box[] = [];
+  const visible = frames.filter((f) => f.labelAlpha > 0.01).sort((a, b) => b.labelAlpha - a.labelAlpha);
+
+  for (const frame of visible) {
+    const half = ctx.measureText(frame.person.name).width / 2 + 3;
+    const offset = 14 * frame.scale;
+    const spots = [frame.y - offset, frame.y + offset + LABEL_PX];
+    const boxAt = (baseline: number): Box => ({
+      left: frame.x - half,
+      right: frame.x + half,
+      top: baseline - LABEL_PX,
+      bottom: baseline + 3,
+    });
+    const free = spots.find((baseline) => !claimed.some((box) => overlaps(box, boxAt(baseline))));
+    const baseline = free ?? spots[0];
+    if (free !== undefined) claimed.push(boxAt(free));
+    const alpha = frame.labelAlpha * (free === undefined ? CROWDED_LABEL_ALPHA : 1);
+    ctx.fillStyle = `rgba(${rgb(frame.person.color, 0.3)}, ${0.92 * alpha})`;
+    ctx.fillText(frame.person.name, frame.x, baseline);
+  }
+}
+
+function overlaps(a: Box, b: Box): boolean {
+  return a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
 }

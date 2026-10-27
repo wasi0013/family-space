@@ -14,7 +14,8 @@ type Phase = 'title' | 'onboarding' | 'people' | 'journey';
 const ONBOARDING_STEPS = 3;
 
 // Development shortcuts: `?demo` (or `?demo=45`) skips onboarding with a sample profile and
-// people, `?age=14.5` opens the scene paused at that age, and `?people` opens the people step.
+// people, `?age=14.5` opens the scene paused at that age, `?cast=crowd` swaps in a crowded
+// sample life, and `?people` opens the people step.
 // They never read or overwrite the saved sky.
 const params = new URLSearchParams(window.location.search);
 const DEMO_PROFILE: Profile | null =
@@ -33,7 +34,9 @@ export function App() {
   const [phase, setPhase] = useState<Phase>(initialPhase);
   const [profile, setProfile] = useState<Profile | null>(DEMO_PROFILE ?? SAVED?.profile ?? null);
   const [people, setPeople] = useState<Person[] | null>(() =>
-    params.has('demo') ? samplePeople(DEMO_PROFILE!.age) : (SAVED?.people ?? null),
+    params.has('demo')
+      ? samplePeople(DEMO_PROFILE!.age, params.get('cast') === 'crowd' ? 'crowd' : 'family')
+      : (SAVED?.people ?? null),
   );
   const persist = (next: Profile, nextPeople: Person[] | null) => {
     if (!DEMO_PROFILE) saveSky({ profile: next, people: nextPeople });

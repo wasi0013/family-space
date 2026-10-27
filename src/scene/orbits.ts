@@ -11,10 +11,15 @@ export const ASCEND_YEARS = 1.8;
 /** How long the rising thread lingers once a memorial star settles. */
 export const THREAD_FADE_YEARS = 1.5;
 
-/** Orbits are circles seen at an angle; this flattens them into ellipses. */
-export const TILT = 0.36;
+/** Orbits are circles seen at an angle; this flattens them into ellipses. Tall screens see more. */
+const TILT = 0.36;
+const PORTRAIT_TILT = 0.5;
 /** Seconds for the innermost orbit to go round once; slow enough to read every label. */
 const INNER_REVOLUTION_S = 90;
+/** Once someone leaves, the people outside them close ranks over this many years. */
+const CLOSE_RANKS_YEARS = 1.5;
+/** Widest the system may grow, however many people orbit at once. */
+const MAX_SYSTEM_RADIUS = 460;
 /** Room kept clear at the bottom of the screen for the age readout. */
 const HUD_CLEARANCE = 150;
 /** Within this distance of the self star, far-side bodies wash out in its glare. */
@@ -32,8 +37,9 @@ export interface Point {
 
 interface Track {
   person: Person;
-  radius: number;
-  /** Seconds per revolution. */
+  /** People who arrived before this one; while they orbit, they keep the lanes further in. */
+  earlier: Person[];
+  /** Seconds per revolution, fixed per person so moving between lanes never makes them jump. */
   period: number;
   phase: number;
   wobble: number;
@@ -44,7 +50,12 @@ interface Track {
 export interface Layout {
   cx: number;
   cy: number;
-  maxRadius: number;
+  tilt: number;
+  /** The innermost lane, clear of the self star's glare. */
+  minRadius: number;
+  laneGap: number;
+  /** How far a shooting star flies before it fades; enough to leave the screen. */
+  reach: number;
   tracks: Track[];
 }
 
@@ -79,34 +90,81 @@ export function layoutScene(
 ): Layout {
   const cx = width / 2;
   const cy = height * selfY;
-  const maxRadius = Math.max(80, Math.min(width * 0.44, (height - cy - HUD_CLEARANCE) / TILT));
-  const minRadius = Math.max(56, maxRadius * 0.28);
-  const lanes = [...people].sort((a, b) => a.joinAge - b.joinAge);
+  const tilt = width < height * 0.8 ? PORTRAIT_TILT : TILT;
+  const maxRadius = Math.max(80, Math.min(width * 0.44, (height - cy - HUD_CLEARANCE) / tilt, MAX_SYSTEM_RADIUS));
+  // The first lane stays clear of the self star's glare and light spikes.
+  const minRadius = Math.min(96, Math.max(56, Math.min(width, height) * 0.1));
+  // Lanes sit a fixed step apart so the system stays compact, tightening only if the busiest
+  // moment of the life would not otherwise fit.
+  const busiest = peakPresence(people);
+  const laneGap = Math.min(
+    Math.min(38, Math.max(18, Math.min(width, height) * 0.045)),
+    (maxRadius - minRadius) / Math.max(1, busiest - 1),
+  );
+  const outerRadius = minRadius + laneGap * Math.max(0, busiest - 1);
+
+  const byArrival = [...people].sort((a, b) => a.joinAge - b.joinAge);
   const memorials = people
     .filter((p) => p.bond === 'permanent' && p.departAge !== null)
     .sort((a, b) => a.departAge! - b.departAge!);
   const skyTop = Math.max(56, height * 0.08);
-  const skyBottom = Math.max(skyTop + 24, cy - maxRadius * TILT - 48);
+  const skyBottom = Math.max(skyTop + 24, cy - outerRadius * tilt - 48);
+  // Many memorials share the sky in staggered rows so their names don't collide.
+  const rows = memorials.length > 6 ? 3 : memorials.length > 3 ? 2 : 1;
+  const rowHeight = (skyBottom - skyTop) / rows;
 
   const tracks = people.map((person) => {
     const rand = mulberry32(hashString(person.id));
     const phase = rand() * Math.PI * 2;
     const wobble = rand() * Math.PI * 2;
-    const lane = lanes.indexOf(person);
-    const radius =
-      lanes.length === 1 ? minRadius : minRadius + ((maxRadius - minRadius) * lane) / (lanes.length - 1);
+    const earlier = byArrival.slice(0, byArrival.indexOf(person));
+    // Outer people turn a little slower, set by where they first settled.
+    const settledAt = minRadius + laneGap * rankAt(earlier, person.joinAge + ARRIVE_YEARS);
+    const period = INNER_REVOLUTION_S * (settledAt / minRadius) ** 0.6 * (0.9 + 0.2 * rand());
     const m = memorials.indexOf(person);
     const slot =
       m < 0
         ? null
         : {
-            x: width * (0.12 + (0.76 * (m + 0.5)) / memorials.length) + (rand() - 0.5) * width * 0.04,
-            y: skyTop + (skyBottom - skyTop) * rand(),
+            x: width * (0.12 + (0.76 * (m + 0.5)) / memorials.length) + (rand() - 0.5) * width * 0.03,
+            y: skyTop + rowHeight * ((m % rows) + 0.5 + (rand() - 0.5) * 0.5),
           };
-    return { person, radius, period: INNER_REVOLUTION_S * (radius / minRadius), phase, wobble, slot };
+    return { person, earlier, period, phase, wobble, slot };
   });
 
-  return { cx, cy, maxRadius, tracks };
+  return { cx, cy, tilt, minRadius, laneGap, reach: Math.hypot(width, height) * 0.4, tracks };
+}
+
+/** How fully someone occupies their lane at `age`: easing in as they arrive, out once they leave. */
+function presence(person: Person, age: number): number {
+  if (age < person.joinAge) return 0;
+  const arrived = smoothstep(0, ARRIVE_YEARS, age - person.joinAge);
+  if (person.departAge === null || age < person.departAge) return arrived;
+  return arrived * (1 - smoothstep(0, CLOSE_RANKS_YEARS, age - person.departAge));
+}
+
+/** Lanes taken further in at `age`, counting part of a lane for anyone arriving or leaving. */
+function rankAt(earlier: readonly Person[], age: number): number {
+  let rank = 0;
+  for (const person of earlier) rank += presence(person, age);
+  return rank;
+}
+
+/** The most people orbiting at once at any point in the life. */
+function peakPresence(people: readonly Person[]): number {
+  const lastAge = Math.max(0, ...people.map((p) => (p.departAge ?? p.joinAge) + CLOSE_RANKS_YEARS));
+  let peak = 1;
+  for (let age = 0; age <= lastAge; age += 0.25) {
+    let count = 0;
+    for (const person of people) count += presence(person, age);
+    peak = Math.max(peak, count);
+  }
+  return Math.ceil(peak - 0.01);
+}
+
+/** The lane someone holds at `age`, drifting inward as people further in leave. */
+function laneRadius(layout: Layout, track: Track, age: number): number {
+  return layout.minRadius + layout.laneGap * rankAt(track.earlier, age);
 }
 
 /** The age at which every departure up to `currentAge` has finished animating. */
@@ -141,13 +199,14 @@ function frameBody(layout: Layout, track: Track, age: number, idleSeconds: numbe
   if (depart === null || age < depart) {
     // Arriving bodies spiral in from a wider orbit as they fade up.
     const e = easeOutCubic(clamp01((age - person.joinAge) / ARRIVE_YEARS));
-    const radius = track.radius * (1 + 0.9 * (1 - e));
+    const lane = laneRadius(layout, track, age);
+    const radius = lane * (1 + 0.9 * (1 - e));
     const theta = angleAt(age) - (1 - e) * 1.2;
     const pos = orbitPoint(layout, radius, theta);
     const depth = Math.sin(theta);
     const near = (depth + 1) / 2;
     // Temporary people trail a long comet tail; permanent ones keep a short, calm trace.
-    const span = (person.bond === 'temporary' ? 2.3 : Math.min(0.7, CALM_TRAIL_PX / track.radius)) * e;
+    const span = (person.bond === 'temporary' ? 2.3 : Math.min(0.7, CALM_TRAIL_PX / lane)) * e;
     const trail: Point[] = [];
     for (let k = ORBIT_TRAIL_POINTS; k >= 0; k--) {
       trail.push(orbitPoint(layout, radius, theta - (span * k) / ORBIT_TRAIL_POINTS));
@@ -170,19 +229,19 @@ function frameBody(layout: Layout, track: Track, age: number, idleSeconds: numbe
 
   const since = age - depart;
   const theta = angleAt(depart);
-  const origin = orbitPoint(layout, track.radius, theta);
+  const origin = orbitPoint(layout, laneRadius(layout, track, depart), theta);
 
   if (person.bond === 'temporary') {
     if (since >= SHOOT_YEARS) return null;
     // Break away along the orbit's tangent and accelerate off into the dark.
     let tx = -Math.sin(theta);
-    let ty = TILT * Math.cos(theta);
+    let ty = layout.tilt * Math.cos(theta);
     const length = Math.hypot(tx, ty);
     tx /= length;
     ty /= length;
-    const travel = layout.maxRadius * (0.3 * since + 2.4 * since * since);
+    const travel = layout.reach * (0.3 * since + 2.4 * since * since);
     const head = { x: origin.x + tx * travel, y: origin.y + ty * travel };
-    const tailLength = Math.min(travel, layout.maxRadius * (0.25 + 0.6 * since));
+    const tailLength = Math.min(travel, layout.reach * (0.25 + 0.6 * since));
     const fade = 1 - smoothstep(0.6, SHOOT_YEARS, since);
     return {
       person,
@@ -232,7 +291,7 @@ function frameBody(layout: Layout, track: Track, age: number, idleSeconds: numbe
 }
 
 function orbitPoint(layout: Layout, radius: number, theta: number): Point {
-  return { x: layout.cx + radius * Math.cos(theta), y: layout.cy + radius * TILT * Math.sin(theta) };
+  return { x: layout.cx + radius * Math.cos(theta), y: layout.cy + radius * layout.tilt * Math.sin(theta) };
 }
 
 /** Far-side bodies passing behind the self star are lost in its light. */
