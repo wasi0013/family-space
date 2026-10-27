@@ -187,12 +187,12 @@ export function frameBodies(
   layout: Layout,
   age: number,
   idleSeconds: number,
-  /** How far everyone is drawn in toward your star at an age, as a share of their lane. */
-  pullAt: (age: number) => number = () => 0,
+  /** Moves a lane in or out at an age, as when people draw close or a swelling star pushes them out. */
+  reshape: (radius: number, age: number) => number = (radius) => radius,
 ): BodyFrame[] {
   const frames: BodyFrame[] = [];
   for (const track of layout.tracks) {
-    const frame = frameBody(layout, track, age, idleSeconds, pullAt);
+    const frame = frameBody(layout, track, age, idleSeconds, reshape);
     if (frame) frames.push(frame);
   }
   return frames;
@@ -203,7 +203,7 @@ function frameBody(
   track: Track,
   age: number,
   idleSeconds: number,
-  pullAt: (age: number) => number,
+  reshape: (radius: number, age: number) => number,
 ): BodyFrame | null {
   const { person } = track;
   if (age < person.joinAge) return null;
@@ -213,7 +213,7 @@ function frameBody(
   if (depart === null || age < depart) {
     // Arriving bodies spiral in from a wider orbit as they fade up.
     const e = easeOutCubic(clamp01((age - person.joinAge) / ARRIVE_YEARS));
-    const lane = laneRadius(layout, track, age) * (1 - pullAt(age));
+    const lane = reshape(laneRadius(layout, track, age), age);
     const radius = lane * (1 + 0.9 * (1 - e));
     const theta = angleAt(age) - (1 - e) * 1.2;
     const pos = orbitPoint(layout, radius, theta);
@@ -243,7 +243,7 @@ function frameBody(
 
   const since = age - depart;
   const theta = angleAt(depart);
-  const origin = orbitPoint(layout, laneRadius(layout, track, depart) * (1 - pullAt(depart)), theta);
+  const origin = orbitPoint(layout, reshape(laneRadius(layout, track, depart), depart), theta);
 
   if (person.bond === 'temporary') {
     if (since >= SHOOT_YEARS) return null;

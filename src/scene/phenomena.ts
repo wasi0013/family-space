@@ -1,7 +1,7 @@
 /** How each kind of moment changes the sky while it plays, as pure functions of age. */
-import type { Moment } from '../model';
+import type { Moment, Person } from '../model';
 import { MOMENT_YEARS, SPARK_YEARS } from './momentSky';
-import { clamp01, type Point } from './orbits';
+import { ASCEND_YEARS, clamp01, type Point } from './orbits';
 import { glowDisc } from './selfStar';
 
 /** How much closer the people orbiting you come during a hard time, as a share of their lane. */
@@ -191,6 +191,90 @@ export function drawLoveGlow(ctx: CanvasRenderingContext2D, width: number, heigh
   gradient.addColorStop(1, 'rgba(255, 150, 170, 0)');
   ctx.fillStyle = gradient;
   ctx.fillRect(0, height * 0.72, width, height * 0.28);
+  ctx.restore();
+}
+
+/** How long your star grieves when someone close becomes a star, in years of the life. */
+export const GRIEF_YEARS = 2.4;
+/** How long a memorial star's nova burns once it reaches its place in the sky. */
+export const NOVA_YEARS = 1.1;
+
+/**
+ * How dimmed your star is by grief at `age`, 0 → 1. Losing someone who stays with you forever
+ * dims it quickly; the light comes back slowly. Several losses close together weigh more.
+ */
+export function griefAt(people: readonly Person[], age: number): number {
+  let light = 1;
+  for (const person of people) {
+    if (person.bond !== 'permanent' || person.departAge === null) continue;
+    const t = age - person.departAge;
+    if (t < 0 || t > GRIEF_YEARS) continue;
+    light *= 1 - 0.6 * smoothstep(0, 0.25, t) * (1 - smoothstep(0.9, GRIEF_YEARS, t));
+  }
+  return 1 - light;
+}
+
+/** A memorial star's nova, as it arrives in the sky: 0 → 1 through the burst, or null. */
+export function novaProgress(person: Person, age: number): number | null {
+  if (person.bond !== 'permanent' || person.departAge === null) return null;
+  const t = (age - person.departAge - ASCEND_YEARS) / NOVA_YEARS;
+  return t >= 0 && t <= 1 ? t : null;
+}
+
+/** How much of a nova's remnant nebula has formed, 0 → 1, staying once it has. */
+export function remnantAt(person: Person, age: number): number {
+  if (person.bond !== 'permanent' || person.departAge === null) return 0;
+  return smoothstep(0.25, 1, (age - person.departAge - ASCEND_YEARS) / NOVA_YEARS);
+}
+
+/**
+ * A nova as someone takes their place among the stars: a blinding flash, a shell of light
+ * rushing outward and thinning, and in its wake a faint ring of nebula that stays around them.
+ */
+export function drawNova(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  rgb: string,
+  progress: number | null,
+  remnant: number,
+  seconds: number,
+) {
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  if (remnant > 0.01) {
+    // The nebula breathes very slowly, and is lopsided like a real one.
+    const breathe = 1 + 0.04 * Math.sin(seconds * 0.35 + x);
+    const r = 24 * breathe;
+    for (const [dx, dy, scale, strength] of [
+      [0, 0, 1, 1],
+      [2.5, -1.5, 0.82, 0.6],
+    ] as const) {
+      const shell = ctx.createRadialGradient(x + dx, y + dy, r * scale * 0.55, x + dx, y + dy, r * scale);
+      shell.addColorStop(0, `rgba(${rgb}, 0)`);
+      shell.addColorStop(0.6, `rgba(${rgb}, ${0.09 * remnant * strength})`);
+      shell.addColorStop(1, `rgba(${rgb}, 0)`);
+      ctx.fillStyle = shell;
+      ctx.fillRect(x - r * 1.2, y - r * 1.2, r * 2.4, r * 2.4);
+    }
+  }
+  if (progress !== null) {
+    const flash = Math.exp(-((progress / 0.12) ** 2));
+    glowDisc(ctx, x, y, 70 * (0.4 + flash), [
+      [0, `rgba(255, 255, 255, ${0.9 * flash})`],
+      [0.15, `rgba(${rgb}, ${0.45 * flash})`],
+      [1, `rgba(${rgb}, 0)`],
+    ]);
+    const eased = 1 - (1 - progress) ** 3;
+    const reach = 8 + 90 * eased;
+    const fade = (1 - progress) ** 1.5;
+    const shell = ctx.createRadialGradient(x, y, reach * 0.7, x, y, reach);
+    shell.addColorStop(0, `rgba(${rgb}, 0)`);
+    shell.addColorStop(0.8, `rgba(${rgb}, ${0.3 * fade})`);
+    shell.addColorStop(1, `rgba(255, 255, 255, 0)`);
+    ctx.fillStyle = shell;
+    ctx.fillRect(x - reach, y - reach, reach * 2, reach * 2);
+  }
   ctx.restore();
 }
 

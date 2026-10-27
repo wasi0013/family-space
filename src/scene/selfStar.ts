@@ -1,4 +1,5 @@
 import { mulberry32 } from '../sky/random';
+import { rgbText, stageAt, towardWhite, type RGB, type StarStage } from './stellar';
 
 export interface Ignition {
   /** Core size, 0 → 1 with a slight overshoot. */
@@ -25,22 +26,17 @@ export function ignition(elapsed: number): Ignition {
   };
 }
 
-const RAY_COUNT = 40;
-const RAYS = (() => {
-  const rand = mulberry32(42);
-  return Array.from({ length: RAY_COUNT }, (_, k) => ({
-    angle: ((k + rand() * 0.8) / RAY_COUNT) * Math.PI * 2,
-    reach: 0.6 + rand() * 0.8,
-    speed: 0.4 + rand() * 1.2,
-    phase: rand() * Math.PI * 2,
-  }));
-})();
-
-/** Fixed tilt so the light spikes don't read as a plus sign. */
+/** A star in its prime, for drawing before a life is known (and as the default). */
+const PRIME: StarStage = stageAt(40);
+/** Slight tilt so the diffraction beams don't read as a plus sign. */
 const SPIKE_TILT = 0.12;
 const BREATH_PERIOD_S = 6;
 
-/** Paints the person's star: halo, glow, corona, light spikes and core, with additive blending. */
+/**
+ * Paints your star the way bright starlight reaches the eye: a wide halo and bloom, a shimmering
+ * corona of hair-fine rays, two soft diffraction beams, and the star's disc itself. Its colour
+ * and size follow its stage of life, from a hot young star to a mottled red giant.
+ */
 export function drawSelfStar(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -48,76 +44,175 @@ export function drawSelfStar(
   radius: number,
   seconds: number,
   ig: Ignition,
+  stage: StarStage = PRIME,
 ) {
   if (ig.grow <= 0) return;
   const breath = Math.sin((seconds * Math.PI * 2) / BREATH_PERIOD_S);
-  const shimmer = 0.5 + 0.5 * Math.sin(seconds * 2.3 + 1.1) * Math.sin(seconds * 0.7);
-  const size = radius * ig.grow * (1 + 0.035 * breath);
+  const size = radius * stage.scale * ig.grow * (1 + 0.035 * breath);
   const glow = Math.min(1, ig.grow) * (0.92 + 0.08 * breath) + ig.flash * 0.9;
+  const { giant } = stage;
+  const tint = rgbText(stage.glow);
+  // The halo and glare widen only gently with the star, so a giant fills the sky without
+  // swallowing the people around it.
+  const reach = radius * (1 + 0.35 * (stage.scale - 1));
 
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
 
-  glowDisc(ctx, x, y, radius * 26 * (1 + ig.flash * 0.35), [
-    [0, `rgba(255, 196, 128, ${0.14 * glow})`],
-    [0.22, `rgba(255, 176, 104, ${0.05 * glow})`],
-    [1, 'rgba(255, 160, 90, 0)'],
+  glowDisc(ctx, x, y, reach * 24 * (1 + ig.flash * 0.35), [
+    [0, `rgba(${tint}, ${0.13 * glow})`],
+    [0.2, `rgba(${tint}, ${0.05 * glow})`],
+    [0.55, `rgba(${tint}, ${0.012 * glow})`],
+    [1, `rgba(${tint}, 0)`],
   ]);
-  glowDisc(ctx, x, y, size * 7, [
-    [0, `rgba(255, 238, 206, ${0.7 * glow})`],
-    [0.22, `rgba(255, 206, 142, ${0.26 * glow})`],
-    [1, 'rgba(255, 190, 120, 0)'],
-  ]);
+  // Bloom: a gaussian falloff, so it has no visible edge however large the star grows.
+  gaussianDisc(ctx, x, y, size * (5.5 + 1.5 * giant), rgbText(towardWhite(stage.glow, 0.5 - 0.3 * giant)), (0.6 - 0.25 * giant) * glow);
 
-  drawCorona(ctx, x, y, size, seconds, glow);
+  drawGlare(ctx, x, y, reach * (10 + 2 * ig.flash), seconds, glow * (0.75 - 0.35 * giant), stage);
 
-  const spike = size * (0.92 + 0.16 * shimmer);
-  drawSpikes(ctx, x, y, spike * 11, size * 0.28, SPIKE_TILT, 0.45 * glow);
-  drawSpikes(ctx, x, y, spike * 5, size * 0.2, SPIKE_TILT + Math.PI / 4, 0.2 * glow);
+  // Diffraction: one long soft beam on each axis, and fainter ones between them.
+  const beam = reach * (13 + 5 * ig.flash) * (0.96 + 0.08 * Math.sin(seconds * 1.3));
+  const beamAlpha = (0.5 - 0.3 * giant) * glow;
+  drawSpikes(ctx, x, y, beam, size * 0.32, SPIKE_TILT, beamAlpha, tint);
+  drawSpikes(ctx, x, y, beam * 0.42, size * 0.22, SPIKE_TILT + Math.PI / 4, beamAlpha * 0.35, tint);
 
-  glowDisc(ctx, x, y, size * 1.15, [
-    [0, 'rgba(255, 255, 255, 1)'],
-    [0.42, 'rgba(255, 252, 244, 1)'],
-    [0.68, 'rgba(255, 232, 192, 0.8)'],
-    [1, 'rgba(255, 212, 158, 0)'],
-  ]);
+  // A faint ring of light just outside the disc, as a lens adds to a bright point; a giant's
+  // light is too spread out to make one.
+  const ringAlpha = 0.07 * glow * (1 - giant);
+  if (ringAlpha > 0.005) {
+    const ring = ctx.createRadialGradient(x, y, size * 2.1, x, y, size * 2.9);
+    ring.addColorStop(0, `rgba(${tint}, 0)`);
+    ring.addColorStop(0.5, `rgba(${tint}, ${ringAlpha})`);
+    ring.addColorStop(1, `rgba(${tint}, 0)`);
+    ctx.fillStyle = ring;
+    ctx.fillRect(x - size * 3, y - size * 3, size * 6, size * 6);
+  }
 
-  if (ig.ring > 0 && ig.ring < 1) drawShockwave(ctx, x, y, radius, ig.ring);
+  drawDisc(ctx, x, y, size * 1.15, seconds, stage);
+
+  if (ig.ring > 0 && ig.ring < 1) drawShockwave(ctx, x, y, radius, ig.ring, tint);
   ctx.restore();
 }
 
-function drawCorona(
+/**
+ * The star's disc: white-hot through and through while young; as a giant, a cooler glowing face
+ * that darkens toward its edge, with great convection cells slowly churning across it.
+ */
+function drawDisc(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, seconds: number, stage: StarStage) {
+  const { giant } = stage;
+  // A giant's face is cooler than its glow suggests: deep gold at the centre, ember at the rim.
+  const core = rgbText(towardWhite(giant > 0 ? mix(stage.light, stage.glow, giant) : stage.light, 1 - 0.72 * giant));
+  const body = rgbText(towardWhite(mix(stage.light, stage.glow, giant), 0.5 - 0.45 * giant));
+  // Limb darkening: bright at the centre, easing smoothly to a dimmer rim.
+  glowDisc(ctx, x, y, r, [
+    [0, `rgba(${core}, 1)`],
+    [0.3 - 0.1 * giant, `rgba(${core}, 0.97)`],
+    [0.55, `rgba(${body}, ${0.92 - 0.1 * giant})`],
+    [0.78, `rgba(${body}, ${0.6 - 0.1 * giant})`],
+    [1, `rgba(${body}, 0)`],
+  ]);
+  if (giant <= 0.02) return;
+  const cell = rgbText(towardWhite(stage.light, 0.35));
+  for (let i = 0; i < 7; i++) {
+    const angle = i * 2.4 + seconds * (0.025 + 0.01 * (i % 3));
+    const distance = r * 0.42 * (0.35 + 0.65 * ((i * 0.37) % 1));
+    const pulse = 0.6 + 0.4 * Math.sin(seconds * 0.4 + i * 1.7);
+    glowDisc(ctx, x + Math.cos(angle) * distance, y + Math.sin(angle) * distance, r * 0.38, [
+      [0, `rgba(${cell}, ${0.32 * giant * pulse})`],
+      [1, `rgba(${cell}, 0)`],
+    ]);
+  }
+}
+
+const GLARE_PX = 384;
+const GLARE_RAYS = 900;
+/** White glare textures, made once: two, so they can shimmer against each other. */
+let glareTextures: HTMLCanvasElement[] | null = null;
+/** Recently used tinted copies; a star's colour changes slowly, so a few are plenty. */
+const tintedGlare = new Map<string, HTMLCanvasElement>();
+const TINT_CACHE = 6;
+
+/** Hundreds of hair-fine radial streaks of uneven length, like eyelashes catching the light. */
+function makeGlare(seed: number): HTMLCanvasElement {
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = GLARE_PX;
+  const ctx = canvas.getContext('2d')!;
+  const rand = mulberry32(seed);
+  const c = GLARE_PX / 2;
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.lineCap = 'round';
+  for (let i = 0; i < GLARE_RAYS; i++) {
+    const angle = rand() * Math.PI * 2;
+    // Mostly short rays, with a few long ones reaching far out.
+    const length = c * (0.12 + 0.88 * rand() ** 2.6);
+    const start = c * 0.04;
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    const gradient = ctx.createLinearGradient(c + cos * start, c + sin * start, c + cos * length, c + sin * length);
+    const strength = 0.05 + 0.2 * rand() ** 2;
+    gradient.addColorStop(0, `rgba(255, 255, 255, ${strength})`);
+    gradient.addColorStop(0.35, `rgba(255, 255, 255, ${strength * 0.35})`);
+    gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+    ctx.strokeStyle = gradient;
+    ctx.lineWidth = 0.5 + rand() * 0.9;
+    ctx.beginPath();
+    ctx.moveTo(c + cos * start, c + sin * start);
+    ctx.lineTo(c + cos * length, c + sin * length);
+    ctx.stroke();
+  }
+  return canvas;
+}
+
+function glareIn(index: number, stage: StarStage): HTMLCanvasElement {
+  glareTextures ??= [makeGlare(7), makeGlare(19)];
+  // Rays are lit by the star but paler than its glow, as fine light reads nearly white.
+  const [r, g, b] = towardWhite(stage.glow, 0.45).map((v) => Math.round(v / 12) * 12);
+  const key = `${index}|${r},${g},${b}`;
+  let tinted = tintedGlare.get(key);
+  if (!tinted) {
+    tinted = document.createElement('canvas');
+    tinted.width = tinted.height = GLARE_PX;
+    const ctx = tinted.getContext('2d')!;
+    ctx.drawImage(glareTextures[index], 0, 0);
+    ctx.globalCompositeOperation = 'source-in';
+    ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+    ctx.fillRect(0, 0, GLARE_PX, GLARE_PX);
+    tintedGlare.set(key, tinted);
+    if (tintedGlare.size > TINT_CACHE) tintedGlare.delete(tintedGlare.keys().next().value!);
+  }
+  return tinted;
+}
+
+/** Two coronas turning slowly in opposite directions and fading against each other, so it shimmers. */
+function drawGlare(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
-  size: number,
+  radius: number,
   seconds: number,
-  glow: number,
+  alpha: number,
+  stage: StarStage,
 ) {
-  const inner = size * 0.9;
-  const gradient = ctx.createRadialGradient(x, y, inner, x, y, size * 5.5);
-  gradient.addColorStop(0, 'rgba(255, 230, 190, 0.55)');
-  gradient.addColorStop(1, 'rgba(255, 200, 140, 0)');
-  ctx.strokeStyle = gradient;
-  ctx.lineWidth = Math.max(0.6, size * 0.08);
-  ctx.lineCap = 'round';
-
-  const drift = seconds * 0.02;
-  for (const ray of RAYS) {
-    const flicker = 0.5 + 0.5 * Math.sin(seconds * ray.speed + ray.phase);
-    const length = size * (1.4 + 3 * ray.reach * flicker);
-    const cos = Math.cos(ray.angle + drift);
-    const sin = Math.sin(ray.angle + drift);
-    ctx.globalAlpha = Math.min(1, glow) * (0.25 + 0.5 * flicker);
-    ctx.beginPath();
-    ctx.moveTo(x + cos * inner, y + sin * inner);
-    ctx.lineTo(x + cos * (inner + length), y + sin * (inner + length));
-    ctx.stroke();
+  if (alpha <= 0.01 || radius <= 0) return;
+  const swap = 0.5 + 0.5 * Math.sin(seconds * 0.55);
+  for (const [index, turn, weight] of [
+    [0, seconds * 0.012, 0.45 + 0.55 * swap],
+    [1, -seconds * 0.009 + 1.3, 1 - 0.55 * swap],
+  ] as const) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(turn);
+    ctx.globalAlpha = alpha * weight;
+    ctx.drawImage(glareIn(index, stage), -radius, -radius, radius * 2, radius * 2);
+    ctx.restore();
   }
-  ctx.globalAlpha = 1;
 }
 
-/** Four tapered light spikes, like a lens catches on a bright star. */
+/**
+ * Light spikes, as a telescope's vanes spread a bright star: soft beams that fade away from a
+ * crisp centre along their length and across their width. Each beam runs both ways, so two make
+ * the four spikes.
+ */
 export function drawSpikes(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -128,36 +223,52 @@ export function drawSpikes(
   alpha: number,
   rgb = '255, 220, 170',
 ) {
-  for (let k = 0; k < 4; k++) {
-    const a = angle + (k * Math.PI) / 2;
-    const cos = Math.cos(a);
-    const sin = Math.sin(a);
-    const gradient = ctx.createLinearGradient(x, y, x + cos * length, y + sin * length);
-    gradient.addColorStop(0, `rgba(255, 244, 222, ${alpha})`);
-    gradient.addColorStop(0.3, `rgba(${rgb}, ${alpha * 0.35})`);
+  if (alpha <= 0.005 || length <= 0) return;
+  const halfWidth = Math.max(0.6, width * 2.4);
+  for (const turn of [angle, angle + Math.PI / 2]) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(turn);
+    ctx.scale(length, halfWidth);
+    const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, 1);
+    gradient.addColorStop(0, `rgba(255, 250, 240, ${alpha})`);
+    gradient.addColorStop(0.04, `rgba(${rgb}, ${alpha * 0.55})`);
+    gradient.addColorStop(0.16, `rgba(${rgb}, ${alpha * 0.2})`);
+    gradient.addColorStop(0.45, `rgba(${rgb}, ${alpha * 0.05})`);
     gradient.addColorStop(1, `rgba(${rgb}, 0)`);
     ctx.fillStyle = gradient;
-    ctx.beginPath();
-    ctx.moveTo(x - sin * width, y + cos * width);
-    ctx.lineTo(x + cos * length, y + sin * length);
-    ctx.lineTo(x + sin * width, y - cos * width);
-    ctx.closePath();
-    ctx.fill();
+    ctx.fillRect(-1, -1, 2, 2);
+    ctx.restore();
   }
 }
 
 /** A soft wavefront of light rolling outward from the newly lit star. */
-function drawShockwave(ctx: CanvasRenderingContext2D, x: number, y: number, radius: number, progress: number) {
+function drawShockwave(ctx: CanvasRenderingContext2D, x: number, y: number, radius: number, progress: number, tint: string) {
   const eased = 1 - (1 - progress) ** 3;
   const reach = radius * (3 + 40 * eased);
   const thickness = reach * (0.35 - 0.2 * eased);
   const fade = (1 - progress) ** 2;
   const front = ctx.createRadialGradient(x, y, Math.max(0, reach - thickness), x, y, reach);
-  front.addColorStop(0, 'rgba(255, 200, 140, 0)');
-  front.addColorStop(0.75, `rgba(255, 222, 182, ${0.16 * fade})`);
-  front.addColorStop(1, 'rgba(255, 236, 210, 0)');
+  front.addColorStop(0, `rgba(${tint}, 0)`);
+  front.addColorStop(0.75, `rgba(${tint}, ${0.16 * fade})`);
+  front.addColorStop(1, `rgba(${tint}, 0)`);
   ctx.fillStyle = front;
   ctx.fillRect(x - reach, y - reach, reach * 2, reach * 2);
+}
+
+/** A soft disc whose brightness falls off like a gaussian, with no visible edge. */
+function gaussianDisc(ctx: CanvasRenderingContext2D, x: number, y: number, radius: number, rgb: string, alpha: number) {
+  glowDisc(
+    ctx,
+    x,
+    y,
+    radius,
+    [0, 0.1, 0.2, 0.32, 0.45, 0.6, 0.78, 1].map((o) => [o, `rgba(${rgb}, ${alpha * Math.exp(-7 * o * o) * (1 - o)})`] as [number, string]),
+  );
+}
+
+function mix(a: RGB, b: RGB, t: number): RGB {
+  return [0, 1, 2].map((i) => Math.round(a[i] + (b[i] - a[i]) * t)) as unknown as RGB;
 }
 
 export function glowDisc(

@@ -7,11 +7,15 @@ import {
   drawAurora,
   drawLoveGlow,
   drawShadow,
+  drawNova,
   drawSpark,
+  griefAt,
   flareAt,
   HARDSHIP_PULL,
   hardshipDepth,
   loveGlow,
+  novaProgress,
+  remnantAt,
   skyAngle,
   sparkProgress,
 } from './phenomena';
@@ -27,7 +31,6 @@ import {
   type MomentPoint,
 } from './momentSky';
 import {
-  clamp01,
   frameBodies,
   layoutScene,
   settleAge,
@@ -36,6 +39,7 @@ import {
   type Layout,
 } from './orbits';
 import { drawSelfStar, ignition, SETTLED, type Ignition } from './selfStar';
+import { stageAt } from './stellar';
 
 const MAX_DPR = 3;
 /** How close a tap must land to a person to pick them, in CSS pixels. */
@@ -52,6 +56,12 @@ const DRIFT_PLAYING = 18;
 const DRIFT_SETTLED = 5;
 /** How quickly the drift eases between those speeds, per second. */
 const DRIFT_EASE = 1.2;
+
+/** "#ff8a7a" → "255, 138, 122". */
+function rgbOf(hex: string): string {
+  const n = parseInt(hex.slice(1), 16);
+  return `${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}`;
+}
 
 export function selfStarRadius(width: number, height: number): number {
   return Math.min(11, Math.max(6, Math.min(width, height) * 0.014));
@@ -342,7 +352,12 @@ export class SceneRenderer {
     // A hard time darkens the sky and draws the people around you closer and brighter.
     const hardship = hardshipDepth(this.moments, this.age);
     skyScroll.dim = 0.42 * hardship;
-    const frames = frameBodies(layout, this.age, this.idleSeconds, (age) => HARDSHIP_PULL * hardshipDepth(this.moments, age));
+    // As your star swells into a giant, everyone's orbit widens to make room.
+    const starRadius = selfStarRadius(width, height);
+    const frames = frameBodies(layout, this.age, this.idleSeconds, (lane, age) => {
+      const swell = starRadius * (stageAt(age).scale - 1) * 2.4;
+      return (lane + swell) * (1 - HARDSHIP_PULL * hardshipDepth(this.moments, age));
+    });
     if (hardship > 0) for (const frame of frames) if (frame.orbitRadius !== null) frame.scale *= 1 + 0.3 * hardship;
     this.lastFrames = frames;
     this.reportMoment();
@@ -360,17 +375,20 @@ export class SceneRenderer {
     this.drawBodies(far, seconds);
     ctx.restore();
 
-    // The star swells a little as its life goes on, flares at a milestone, and dims in a hard time.
-    const growth = 0.55 + 0.45 * clamp01(this.age / Math.max(1, this.profile.age));
-    const radius = selfStarRadius(width, height) * growth;
+    // The star ages with you, flares at a milestone, and dims in a hard time and in grief.
+    const stage = stageAt(this.age);
+    const radius = selfStarRadius(width, height);
+    const grief = griefAt(this.people, this.age);
+    // Grief makes the light waver as well as fade.
+    const waver = grief * (0.5 + 0.5 * Math.sin(seconds * 3.1) * Math.sin(seconds * 1.3 + 0.7));
     const self = { x: width / 2, y: height * SELF_Y };
     const flare = flareAt(this.moments, this.age);
     const lit = flare && ig.ring >= 1 ? { ...ig, flash: Math.max(ig.flash, flare.flash), ring: flare.ring } : ig;
     ctx.save();
-    ctx.globalAlpha = 1 - 0.6 * hardship;
-    drawSelfStar(ctx, self.x, self.y, radius * (1 - 0.15 * hardship), seconds, lit);
+    ctx.globalAlpha = (1 - 0.6 * hardship) * (1 - 0.75 * grief - 0.15 * waver);
+    drawSelfStar(ctx, self.x, self.y, radius * (1 - 0.15 * hardship - 0.1 * grief), seconds, lit, stage);
     ctx.restore();
-    drawShadow(ctx, self.x, self.y, radius, hardship);
+    drawShadow(ctx, self.x, self.y, radius * stage.scale, hardship);
 
     if (this.constellation) {
       for (const moment of this.moments) {
@@ -392,6 +410,11 @@ export class SceneRenderer {
   private drawBodies(frames: readonly BodyFrame[], seconds: number) {
     for (const frame of frames) {
       drawTrail(this.ctx, frame);
+      if (frame.memorial) {
+        // Someone reaching their place among the stars bursts as a nova, then keeps its nebula.
+        const { person } = frame;
+        drawNova(this.ctx, frame.x, frame.y, rgbOf(person.color), novaProgress(person, this.age), remnantAt(person, this.age), seconds);
+      }
       drawBody(this.ctx, frame, seconds);
     }
   }

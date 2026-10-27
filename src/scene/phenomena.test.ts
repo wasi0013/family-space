@@ -1,7 +1,20 @@
 import { describe, expect, it } from 'vitest';
-import type { Moment } from '../model';
+import type { Moment, Person } from '../model';
+import { ASCEND_YEARS } from './orbits';
 import { MOMENT_YEARS, SPARK_YEARS } from './momentSky';
-import { auroraStrength, flareAt, hardshipDepth, loveGlow, skyAngle, sparkProgress } from './phenomena';
+import {
+  auroraStrength,
+  flareAt,
+  GRIEF_YEARS,
+  griefAt,
+  hardshipDepth,
+  loveGlow,
+  NOVA_YEARS,
+  novaProgress,
+  remnantAt,
+  skyAngle,
+  sparkProgress,
+} from './phenomena';
 
 const graduated: Moment = { id: 'g', title: 'Graduated', age: 22, kind: 'milestone' };
 const lostJob: Moment = { id: 'l', title: 'Lost my job', age: 29, kind: 'hardship' };
@@ -78,5 +91,34 @@ describe('love', () => {
     expect(auroraStrength([married], 26 + MOMENT_YEARS.love)).toBe(0);
     expect(loveGlow([married], 26.5)).toBe(0);
     expect(loveGlow([married], 40)).toBeCloseTo(0.5, 9);
+  });
+});
+
+describe('grief and nova', () => {
+  const grandma: Person = { id: 'g', name: 'Grandma', bond: 'permanent', joinAge: 0, departAge: 20, color: '#b7a6ff' };
+  const friend: Person = { id: 'f', name: 'Sam', bond: 'temporary', joinAge: 5, departAge: 20, color: '#8ff0d2' };
+
+  it('dims your star when someone close becomes a star, and lets the light come back', () => {
+    expect(griefAt([grandma], 19.9)).toBe(0);
+    expect(griefAt([grandma], 20.5)).toBeCloseTo(0.6, 6);
+    expect(griefAt([grandma], 20 + GRIEF_YEARS)).toBe(0);
+  });
+
+  it('weighs losses close together more, without ever going fully dark', () => {
+    const both = griefAt([grandma, { ...grandma, id: 'p' }], 20.5);
+    expect(both).toBeGreaterThan(griefAt([grandma], 20.5));
+    expect(both).toBeLessThan(1);
+  });
+
+  it('does not grieve someone who drifted away', () => {
+    expect(griefAt([friend], 20.5)).toBe(0);
+    expect(novaProgress(friend, 22)).toBeNull();
+  });
+
+  it('bursts as a nova when they reach the sky, leaving a nebula that stays', () => {
+    expect(novaProgress(grandma, 20 + ASCEND_YEARS - 0.01)).toBeNull();
+    expect(novaProgress(grandma, 20 + ASCEND_YEARS + NOVA_YEARS / 2)).toBeCloseTo(0.5, 6);
+    expect(remnantAt(grandma, 20 + ASCEND_YEARS)).toBe(0);
+    expect(remnantAt(grandma, 60)).toBe(1);
   });
 });
