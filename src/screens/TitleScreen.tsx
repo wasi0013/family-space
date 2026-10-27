@@ -19,9 +19,11 @@ interface TitleScreenProps {
   onStart: () => void;
   /** Erases the saved sky and starts again from the first question. */
   onStartOver: () => void;
+  /** Plays the example life, leaving any saved sky as it is. */
+  onExample: () => void;
 }
 
-export function TitleScreen({ returning, onStart, onStartOver }: TitleScreenProps) {
+export function TitleScreen({ returning, onStart, onStartOver, onExample }: TitleScreenProps) {
   const [leaving, setLeaving] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const started = useRef(false);
@@ -79,6 +81,9 @@ export function TitleScreen({ returning, onStart, onStartOver }: TitleScreenProp
           {(returning ? t.returnKeys : t.beginKeys)[1]}
         </span>
         <span className="begin-touch">{returning ? t.returnTouch : t.beginTouch}</span>
+      </button>
+      <button type="button" className="see-example" onClick={() => leave(onExample)}>
+        {t.seeExample} <span aria-hidden="true">→</span>
       </button>
       {returning && (
         <button type="button" className={confirming ? 'start-over is-confirming' : 'start-over'} onClick={startOver}>

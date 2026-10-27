@@ -111,16 +111,21 @@ function drawTitles(ctx: CanvasRenderingContext2D, points: readonly MomentPoint[
   ctx.textAlign = 'center';
   ctx.textBaseline = 'alphabetic';
   const claimed: Box[] = [];
+  const width = ctx.canvas.clientWidth || ctx.canvas.width;
   const order = [...points].sort((a, b) => Number(b.moment.id === focusId) - Number(a.moment.id === focusId));
   for (const point of order) {
     const half = ctx.measureText(point.moment.title).width / 2 + 4;
+    // Near either edge a title shifts inward rather than running off the screen.
+    const x = Math.min(Math.max(point.x, half + 4), width - half - 4);
     const spots = [point.y - 11, point.y + 11 + TITLE_PX];
-    const boxAt = (baseline: number): Box => ({ left: point.x - half, right: point.x + half, top: baseline - TITLE_PX, bottom: baseline + 3 });
+    const boxAt = (baseline: number): Box => ({ left: x - half, right: x + half, top: baseline - TITLE_PX, bottom: baseline + 3 });
     const free = spots.find((baseline) => !claimed.some((box) => overlaps(box, boxAt(baseline))));
     if (free !== undefined) claimed.push(boxAt(free));
-    const alpha = point.lit * (point.moment.id === focusId ? 1 : free === undefined ? 0.3 : 0.78);
+    // A title with no room is left unwritten; its star stays, and tapping it reads it.
+    if (free === undefined && point.moment.id !== focusId) continue;
+    const alpha = point.lit * (point.moment.id === focusId ? 1 : 0.78);
     ctx.fillStyle = `rgba(236, 239, 253, ${alpha})`;
-    ctx.fillText(point.moment.title, point.x, free ?? spots[0]);
+    ctx.fillText(point.moment.title, x, free ?? spots[0]);
   }
   ctx.restore();
 }

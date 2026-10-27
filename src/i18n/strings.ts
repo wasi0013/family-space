@@ -25,6 +25,13 @@ export interface Strings {
   returnTouch: string;
   startOver: string;
   startOverConfirm: string;
+  /** The title screen's link to the example life. */
+  seeExample: string;
+  /** Starts a sky of your own from the example being watched. */
+  makeItYours: string;
+  makeItYoursConfirm: string;
+  /** The brand's label while the example plays, where it leads back to the title. */
+  backToStart: string;
 
   step: (n: number, total: number) => string;
   askName: string;

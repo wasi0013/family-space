@@ -18,6 +18,8 @@ const VIDEO_TYPES = ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp
 // Bengali fonts follow the Latin ones, so Bengali names and words render properly too.
 const FONT_UI = '"Inter Variable", "Hind Siliguri", ui-sans-serif, system-ui, sans-serif';
 const FONT_DISPLAY = '"Cormorant Garamond", "Noto Serif Bengali", Georgia, serif';
+/** Bengali words in exports: the sturdy sans, which stays readable when a video is shrunk. */
+const FONT_BENGALI = '"Hind Siliguri", "Inter Variable", ui-sans-serif, system-ui, sans-serif';
 /** Wide tracking breaks Bengali conjuncts apart, so it only applies to Latin text. */
 const tracking = (px: number) => (t.lang === 'bn' ? '0px' : `${px}px`);
 
@@ -88,14 +90,14 @@ function drawClosingCard(ctx: CanvasRenderingContext2D, progress: number, m: num
   const invite = ease((progress - 0.12) / 0.22);
   const rise = (1 - invite) * 12 * m;
   ctx.save();
-  ctx.fillStyle = `rgba(3, 4, 11, ${0.78 * veil})`;
+  ctx.fillStyle = `rgba(3, 4, 11, ${0.86 * veil})`;
   ctx.fillRect(0, 0, width, height);
   ctx.globalAlpha = invite;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'alphabetic';
 
   const middle = height * 0.5 + rise;
-  const star = middle - 58 * m;
+  const star = middle - 64 * m;
   const glow = ctx.createRadialGradient(width / 2, star, 0, width / 2, star, 22 * m);
   glow.addColorStop(0, 'rgba(255, 240, 210, 0.95)');
   glow.addColorStop(0.25, 'rgba(255, 207, 138, 0.4)');
@@ -105,32 +107,69 @@ function drawClosingCard(ctx: CanvasRenderingContext2D, progress: number, m: num
 
   // Bengali has no capitals and its conjuncts need normal spacing.
   const bengali = t.lang === 'bn';
-  ctx.font = `500 ${(bengali ? 17 : 14) * m}px ${FONT_UI}`;
+  const room = width * 0.9;
   ctx.letterSpacing = tracking(3.6 * m);
-  ctx.fillStyle = 'rgba(220, 228, 255, 0.7)';
-  ctx.fillText(bengali ? t.makeYourOwnSky : t.makeYourOwnSky.toUpperCase(), width / 2, middle);
+  const invitation = bengali ? t.makeYourOwnSky : t.makeYourOwnSky.toUpperCase();
+  ctx.font = `${bengali ? 600 : 500} ${fitSize(ctx, invitation, (bengali ? 26 : 19) * m, room, bengali ? FONT_BENGALI : FONT_UI)}px ${bengali ? FONT_BENGALI : FONT_UI}`;
+  ctx.fillStyle = 'rgba(230, 236, 255, 0.88)';
+  ctx.fillText(invitation, width / 2, middle);
 
+  // The address in the steady UI face, so it reads even shrunk to a phone in a chat.
   ctx.letterSpacing = '0px';
-  ctx.font = `italic 300 ${30 * m}px ${FONT_DISPLAY}`;
-  ctx.fillStyle = 'rgba(255, 226, 186, 0.96)';
-  ctx.shadowColor = 'rgba(255, 207, 138, 0.35)';
-  ctx.shadowBlur = 20 * m;
-  const addressBaseline = middle + 50 * m;
   const address = appAddress(t.lang);
+  const size = fitSize(ctx, address, 32 * m, room - 44 * m, FONT_UI, 500);
+  ctx.font = `500 ${size}px ${FONT_UI}`;
+  ctx.fillStyle = 'rgba(255, 228, 190, 1)';
+  ctx.shadowColor = 'rgba(255, 207, 138, 0.3)';
+  ctx.shadowBlur = size * 0.6;
+  const addressBaseline = middle + 56 * m;
   const addressWidth = ctx.measureText(address).width;
-  const book = 28 * m;
-  const gap = 12 * m;
+  const book = size * 0.95;
+  const gap = size * 0.4;
   const start = width / 2 - (addressWidth + book + gap) / 2;
   ctx.textAlign = 'left';
   ctx.fillText(address, start + book + gap, addressBaseline);
   ctx.shadowBlur = 0;
-  drawBook(ctx, start, addressBaseline - 23 * m, book, 'rgba(255, 226, 186, 0.96)');
+  drawBook(ctx, start, addressBaseline - book * 0.82, book, 'rgba(255, 228, 190, 1)');
+  ctx.restore();
+}
+
+/** The largest size up to `px` at which `text` fits in `room`, in the given font. */
+function fitSize(ctx: CanvasRenderingContext2D, text: string, px: number, room: number, family: string, weight = 500): number {
+  ctx.font = `${weight} ${px}px ${family}`;
+  const width = ctx.measureText(text).width;
+  return width > room ? (px * room) / width : px;
+}
+
+/**
+ * Text over a starry sky: a dark halo first, so stars behind it never run into the letters, then
+ * the text itself.
+ */
+function fillLegible(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, halo: number) {
+  ctx.save();
+  ctx.shadowColor = 'rgba(2, 3, 9, 0.9)';
+  ctx.shadowBlur = halo;
+  ctx.fillText(text, x, y);
+  ctx.shadowBlur = halo * 0.4;
+  ctx.fillText(text, x, y);
   ctx.restore();
 }
 
 function drawCaption(ctx: CanvasRenderingContext2D, caption: Caption, k: number) {
   const { width, height } = ctx.canvas;
+  const bengali = t.lang === 'bn';
+  // The marks along the bottom are sized to the export itself, not the screen: a shared video is
+  // usually watched shrunk to a phone's width, where screen-sized text would be unreadable.
+  const m = Math.max(k, width / 1100);
   ctx.save();
+
+  // A soft darkening along the bottom, so the age and the marks sit on calm sky.
+  const band = ctx.createLinearGradient(0, height - 230 * Math.max(k, m * 0.8), 0, height);
+  band.addColorStop(0, 'rgba(3, 4, 11, 0)');
+  band.addColorStop(1, 'rgba(3, 4, 11, 0.62)');
+  ctx.fillStyle = band;
+  ctx.fillRect(0, height - 230 * Math.max(k, m * 0.8), width, 230 * Math.max(k, m * 0.8));
+
   ctx.textAlign = 'center';
   ctx.textBaseline = 'alphabetic';
   ctx.shadowColor = 'rgba(255, 200, 140, 0.35)';
@@ -142,42 +181,48 @@ function drawCaption(ctx: CanvasRenderingContext2D, caption: Caption, k: number)
   ctx.fillText(t.num(caption.age), width / 2, ageBaseline);
 
   ctx.shadowBlur = 0;
-  ctx.font = `500 ${10 * k}px ${FONT_UI}`;
+  ctx.font = bengali ? `500 ${15 * k}px ${FONT_BENGALI}` : `500 ${12 * k}px ${FONT_UI}`;
   ctx.letterSpacing = tracking(3.2 * k);
-  ctx.fillStyle = 'rgba(220, 228, 255, 0.5)';
-  ctx.fillText(t.ageCaption(caption.name).toUpperCase(), width / 2, ageBaseline - 52 * k);
+  ctx.fillStyle = 'rgba(226, 232, 255, 0.78)';
+  fillLegible(ctx, t.ageCaption(caption.name).toUpperCase(), width / 2, ageBaseline - 54 * k, 8 * k);
 
   if (caption.moment) {
     ctx.letterSpacing = '0px';
-    ctx.font = `${t.lang === 'bn' ? '' : 'italic '}300 ${21 * k}px ${FONT_DISPLAY}`;
-    ctx.fillStyle = 'rgba(255, 246, 232, 0.94)';
-    ctx.shadowColor = 'rgba(255, 207, 138, 0.35)';
-    ctx.shadowBlur = 18 * k;
-    ctx.fillText(caption.moment, width / 2, ageBaseline - 74 * k);
-    ctx.shadowBlur = 0;
+    // Bengali in the light serif turns faint when shrunk, so it takes the sturdier sans.
+    ctx.font = bengali ? `500 ${25 * k}px ${FONT_BENGALI}` : `italic 300 ${27 * k}px ${FONT_DISPLAY}`;
+    ctx.fillStyle = 'rgba(255, 246, 232, 0.98)';
+    fillLegible(ctx, caption.moment, width / 2, ageBaseline - 80 * k, 12 * k);
   }
 
   ctx.textAlign = 'left';
-  // The marks along the bottom are sized to the export itself, not the screen: a shared video is
-  // usually watched shrunk to a phone's width, where screen-sized text would be unreadable.
-  const m = Math.max(k, width / 1100);
   const margin = 22 * m;
-  ctx.font = `500 ${12 * m}px ${FONT_UI}`;
+  const brand = 'FAMILY SPACE';
+  const address = EXPORT_ADDRESS;
+  // Both marks share one row; on a narrow, upright video they shrink together to fit it.
+  ctx.letterSpacing = `${3.6 * m}px`;
+  ctx.font = `600 ${15 * m}px ${FONT_UI}`;
+  const brandWidth = ctx.measureText(brand).width;
+  ctx.letterSpacing = '0px';
+  ctx.font = `500 ${21 * m}px ${FONT_UI}`;
+  const addressWidth = ctx.measureText(address).width + 30 * m;
+  const shrink = Math.min(1, (width - 2 * margin - 24 * m) / (brandWidth + addressWidth));
+  const n = m * shrink;
+
   // The brand is Latin in every language, so it keeps its tracking.
-  ctx.letterSpacing = `${3.4 * m}px`;
-  ctx.fillStyle = 'rgba(220, 228, 255, 0.5)';
-  ctx.fillText('FAMILY SPACE', margin, height - margin);
+  ctx.letterSpacing = `${3.6 * n}px`;
+  ctx.font = `600 ${15 * n}px ${FONT_UI}`;
+  ctx.fillStyle = 'rgba(226, 232, 255, 0.8)';
+  fillLegible(ctx, brand, margin, height - margin, 8 * n);
 
   // Opposite the brand, the address beside a small open book, as in the page's footer.
-  const address = EXPORT_ADDRESS;
   ctx.textAlign = 'right';
   ctx.letterSpacing = '0px';
-  ctx.font = `italic 300 ${17 * m}px ${FONT_DISPLAY}`;
-  ctx.fillStyle = 'rgba(240, 230, 210, 0.78)';
+  ctx.font = `500 ${21 * n}px ${FONT_UI}`;
+  ctx.fillStyle = 'rgba(255, 238, 214, 0.96)';
   const right = width - margin;
-  const baseline = height - margin + 1 * m;
-  ctx.fillText(address, right, baseline);
-  drawBook(ctx, right - ctx.measureText(address).width - 9 * m - 17 * m, baseline - 14 * m, 17 * m);
+  const baseline = height - margin + 1 * n;
+  fillLegible(ctx, address, right, baseline, 8 * n);
+  drawBook(ctx, right - ctx.measureText(address).width - 9 * n - 21 * n, baseline - 17 * n, 21 * n, 'rgba(255, 238, 214, 0.96)');
   ctx.restore();
 }
 

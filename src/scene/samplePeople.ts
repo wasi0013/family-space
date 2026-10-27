@@ -78,7 +78,7 @@ type SampleMoment = [english: string, bengali: string, at: number, kind: MomentK
 /** One of each kind, at ages that fit the sample family. */
 const MOMENTS: SampleMoment[] = [
   ['Started school', 'স্কুলে ভর্তি', 0.19, 'milestone'],
-  ['Moved to Dhaka', 'ঢাকায় চলে এলাম', 0.4, 'home'],
+  ['Moved to Boston', 'ঢাকায় চলে এলাম', 0.4, 'home'],
   ['Graduated', 'স্নাতক পাস', 0.69, 'milestone'],
   ['Married', 'বিয়ে', 0.81, 'love'],
   ['Lost my job', 'চাকরি হারালাম', 0.9, 'hardship'],

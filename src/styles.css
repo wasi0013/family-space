@@ -51,6 +51,22 @@ body,
   animation: fade-in 1.2s ease 0.4s both;
 }
 
+.brand.is-link {
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  font-family: inherit;
+  pointer-events: auto;
+  cursor: pointer;
+  transition: color 0.25s ease;
+}
+
+.brand.is-link:hover,
+.brand.is-link:focus-visible {
+  outline: none;
+  color: var(--ink-soft);
+}
+
 /* A quiet way to the author's site: an open book, its name sliding out on hover or focus. */
 .credit {
   display: inline-flex;
@@ -180,8 +196,41 @@ body,
   font: inherit;
 }
 
+.see-example {
+  margin-top: 18px;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 300;
+  font-size: clamp(1rem, 1.8vw, 1.15rem);
+  letter-spacing: 0.02em;
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: color 0.25s ease;
+  animation: fade-in 1.2s ease 2.7s both;
+}
+
+.see-example span {
+  display: inline-block;
+  transition: transform 0.3s var(--ease-out);
+}
+
+.see-example:hover,
+.see-example:focus-visible {
+  outline: none;
+  color: var(--ink);
+}
+
+.see-example:hover span,
+.see-example:focus-visible span {
+  transform: translateX(4px);
+}
+
 .start-over {
-  margin-top: 14px;
+  margin-top: 6px;
   padding: 8px 14px;
   border: 0;
   border-radius: 999px;
@@ -227,6 +276,7 @@ body,
 
 .is-leaving .tagline,
 .is-leaving .begin,
+.is-leaving .see-example,
 .is-leaving .start-over {
   animation: fade-out 0.45s ease forwards;
 }
@@ -701,8 +751,11 @@ body,
   top: max(16px, env(safe-area-inset-top));
   right: max(16px, env(safe-area-inset-right));
   display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   align-items: flex-start;
   gap: 8px;
+  max-width: calc(100vw - 32px);
   animation: fade-in 1.2s ease 3s both;
 }
 
@@ -726,6 +779,24 @@ body,
   outline: none;
   color: var(--ink);
   border-color: rgba(214, 224, 255, 0.55);
+}
+
+/* The example's way out: starting a sky of your own from it. */
+.scene-action.is-own {
+  border-color: rgba(255, 207, 138, 0.5);
+  color: #ffe2ba;
+  box-shadow: 0 0 18px rgba(255, 196, 120, 0.14);
+}
+
+.scene-action.is-own:hover,
+.scene-action.is-own:focus-visible {
+  border-color: rgba(255, 220, 160, 0.85);
+  color: #fff3df;
+}
+
+.scene-action.is-confirming {
+  border-color: var(--error);
+  color: var(--error);
 }
 
 .keep {
@@ -1032,6 +1103,12 @@ body,
   font-size: 12.5px;
 }
 
+/* Bengali has no true italics, so the example link stands upright. */
+:lang(bn) .see-example {
+  font-style: normal;
+  line-height: 1.35;
+}
+
 /* Bengali vowel signs reach above and below the letters, so display text needs taller lines. */
 :lang(bn) :is(.question-text, .tagline, .people-lede, .hud-caption, .memory-name, .keep-option-title) {
   line-height: 1.35;
@@ -1114,5 +1191,20 @@ body,
 
   .title-screen.is-leaving {
     opacity: 0;
+  }
+}
+
+/* On the narrowest phones the scene's buttons tighten up, so all three stay on one row. */
+@media (max-width: 380px) {
+  .scene-actions {
+    gap: 6px;
+  }
+  .scene-action {
+    padding: 8px 11px;
+    letter-spacing: 0.12em;
+  }
+  :lang(bn) .scene-action {
+    padding: 7px 10px;
+    font-size: 13px;
   }
 }

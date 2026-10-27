@@ -24,6 +24,10 @@ interface SceneProps {
   onRemember: (personId: string, memory: string) => void;
   /** Saves a moment's note; an empty string removes it. */
   onNote: (momentId: string, note: string) => void;
+  /** Set while watching the example life: starts a sky of your own from it. */
+  onMakeItYours?: () => void;
+  /** Set when starting from the example would replace a saved sky, so it asks first. */
+  replacesSaved?: boolean;
 }
 
 /** The star whose card is open: a person, or a moment in the constellation. */
@@ -34,12 +38,48 @@ interface Remembering {
   y: number;
 }
 
+/** How long "Make it yours" waits for its confirming second click. */
+const CONFIRM_MS = 4000;
+
+/** Starts your own sky from the example; asks once more when that would replace a saved one. */
+function MakeItYours({ confirmFirst, onConfirm }: { confirmFirst: boolean; onConfirm: () => void }) {
+  const [confirming, setConfirming] = useState(false);
+
+  useEffect(() => {
+    if (!confirming) return;
+    const timer = window.setTimeout(() => setConfirming(false), CONFIRM_MS);
+    return () => clearTimeout(timer);
+  }, [confirming]);
+
+  return (
+    <button
+      type="button"
+      className={confirming ? 'scene-action is-own is-confirming' : 'scene-action is-own'}
+      onClick={() => (confirmFirst && !confirming ? setConfirming(true) : onConfirm())}
+    >
+      {confirming ? t.makeItYoursConfirm : t.makeItYours}
+    </button>
+  );
+}
+
 /** Typing in a field must not also play, pause or step through the years. */
 function isTyping(target: EventTarget | null): boolean {
   return target instanceof HTMLElement && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName));
 }
 
-export function Scene({ profile, people, moments, initialAge, skyRef, onEditPeople, onEditMoments, onRemember, onNote }: SceneProps) {
+export function Scene({
+  profile,
+  people,
+  moments,
+  initialAge,
+  skyRef,
+  onEditPeople,
+  onEditMoments,
+  onRemember,
+  onNote,
+  onMakeItYours,
+  replacesSaved = false,
+}: SceneProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const ageRef = useRef<HTMLSpanElement>(null);
   const rendererRef = useRef<SceneRenderer | null>(null);
@@ -177,6 +217,7 @@ export function Scene({ profile, people, moments, initialAge, skyRef, onEditPeop
       <div className="scene-actions">
         <Keep profile={profile} skyRef={skyRef} sceneRef={canvasRef} rendererRef={rendererRef} />
         <EditMenu onEditPeople={onEditPeople} onEditMoments={onEditMoments} />
+        {onMakeItYours && <MakeItYours confirmFirst={replacesSaved} onConfirm={onMakeItYours} />}
       </div>
       {rememberedPerson && remembering && (
         <MemoryCard
