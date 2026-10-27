@@ -6,6 +6,8 @@ import { canRecord, deliver, JourneyRecorder, slug, snapshot, type Caption, type
 
 /** Settled sky kept at the end of a recording before it stops on its own. */
 const ENDING_HOLD_MS = 3500;
+/** How long the closing card plays at the end of every recording. */
+const CARD_MS = 4500;
 const NOTICE_MS = 3500;
 
 interface KeepProps {
@@ -22,6 +24,8 @@ export function Keep({ profile, skyRef, sceneRef, rendererRef }: KeepProps) {
   const [elapsed, setElapsed] = useState(0);
   const [notice, setNotice] = useState('');
   const recorderRef = useRef<JourneyRecorder | null>(null);
+  /** When the closing card began, or 0 before it. */
+  const cardStartRef = useRef(0);
   const rootRef = useRef<HTMLDivElement>(null);
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const recordable = canRecord() && !reducedMotion;
@@ -32,6 +36,7 @@ export function Keep({ profile, skyRef, sceneRef, rendererRef }: KeepProps) {
     name: profile.name,
     age: Math.min(profile.age, Math.floor(rendererRef.current?.currentAge ?? profile.age)),
     moment: rendererRef.current?.momentCaption ?? undefined,
+    card: cardStartRef.current ? Math.min(1, (Date.now() - cardStartRef.current) / CARD_MS) : undefined,
   });
 
   const tell = (message: string) => setNotice(message);
@@ -78,9 +83,10 @@ export function Keep({ profile, skyRef, sceneRef, rendererRef }: KeepProps) {
         settledSince = 0;
       } else if (!settledSince) {
         settledSince = Date.now();
-      } else if (Date.now() - settledSince >= ENDING_HOLD_MS) {
-        void finishRecording();
+      } else if (!cardStartRef.current && Date.now() - settledSince >= ENDING_HOLD_MS) {
+        cardStartRef.current = Date.now();
       }
+      if (cardStartRef.current && Date.now() - cardStartRef.current >= CARD_MS) void finishRecording();
     }, 250);
     return () => clearInterval(timer);
     // finishRecording only reads refs, so the interval need not restart when it changes.
@@ -88,6 +94,12 @@ export function Keep({ profile, skyRef, sceneRef, rendererRef }: KeepProps) {
 
   // Leaving the scene mid-recording drops the recording rather than leaving it running.
   useEffect(() => () => recorderRef.current?.discard(), []);
+
+  // Stopping early still ends the video on its closing card; stopping during the card ends it now.
+  const stop = () => {
+    if (cardStartRef.current) void finishRecording();
+    else cardStartRef.current = Date.now();
+  };
 
   const record = () => {
     const sources = layers();
@@ -103,6 +115,7 @@ export function Keep({ profile, skyRef, sceneRef, rendererRef }: KeepProps) {
       return;
     }
     recorderRef.current = recorder;
+    cardStartRef.current = 0;
     setElapsed(0);
     setRecording({ startedAt: Date.now() });
   };
@@ -135,7 +148,7 @@ export function Keep({ profile, skyRef, sceneRef, rendererRef }: KeepProps) {
             {t.recording}{' '}
             <span className="recording-time">{t.num(`${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`)}</span>
           </span>
-          <button type="button" className="recording-stop" onClick={() => void finishRecording()}>
+          <button type="button" className="recording-stop" onClick={stop}>
             {t.stop}
           </button>
         </div>

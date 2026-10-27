@@ -4,11 +4,11 @@ import { t } from '../i18n';
 const MAX_EXPORT_WIDTH = 1920;
 const MAX_EXPORT_HEIGHT = 1080;
 const VIDEO_FPS = 30;
-/**
- * The address written into every export, so a shared video leads back to the app and the book
- * behind it. Bengali exports point to the Bengali page.
- */
-export function exportAddress(lang: string): string {
+/** The address in the corner of every export, so a shared video leads back to the book's home. */
+export const EXPORT_ADDRESS = 'raisingthegiftedmind.com';
+
+/** The address on the closing card, where viewers can make their own sky, in their language. */
+export function appAddress(lang: string): string {
   return lang === 'bn' ? 'familyspace.raisingthegiftedmind.com/bn' : 'familyspace.raisingthegiftedmind.com';
 }
 const VIDEO_BITRATE = 8_000_000;
@@ -32,6 +32,8 @@ export interface Caption {
   age: number;
   /** The moment playing now, named above the age as on screen. */
   moment?: string;
+  /** Progress through the closing card at the end of a recording, 0 → 1; absent before it. */
+  card?: number;
 }
 
 function videoType(): string | null {
@@ -62,7 +64,68 @@ function compose(ctx: CanvasRenderingContext2D, layers: Layers, caption: Caption
   ctx.globalCompositeOperation = 'screen';
   ctx.drawImage(layers.scene, 0, 0, width, height);
   ctx.globalCompositeOperation = 'source-over';
+  const card = caption.card ?? 0;
+  // The age and the corner marks give way to the closing card, which carries the address itself.
+  ctx.globalAlpha = 1 - ease(card / 0.2);
   drawCaption(ctx, caption, k);
+  ctx.globalAlpha = 1;
+  if (card > 0) drawClosingCard(ctx, card, Math.max(k, ctx.canvas.width / 1100));
+}
+
+/** Seconds-free easing in [0, 1] for the card's fades. */
+function ease(t: number): number {
+  const u = Math.min(1, Math.max(0, t));
+  return u * u * (3 - 2 * u);
+}
+
+/**
+ * The card that closes a recorded journey: the sky dims, and an invitation to make your own sky
+ * rises into the middle with the address, beneath a small star in the gold of your own.
+ */
+function drawClosingCard(ctx: CanvasRenderingContext2D, progress: number, m: number) {
+  const { width, height } = ctx.canvas;
+  const veil = ease(progress / 0.2);
+  const invite = ease((progress - 0.12) / 0.22);
+  const rise = (1 - invite) * 12 * m;
+  ctx.save();
+  ctx.fillStyle = `rgba(3, 4, 11, ${0.78 * veil})`;
+  ctx.fillRect(0, 0, width, height);
+  ctx.globalAlpha = invite;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'alphabetic';
+
+  const middle = height * 0.5 + rise;
+  const star = middle - 58 * m;
+  const glow = ctx.createRadialGradient(width / 2, star, 0, width / 2, star, 22 * m);
+  glow.addColorStop(0, 'rgba(255, 240, 210, 0.95)');
+  glow.addColorStop(0.25, 'rgba(255, 207, 138, 0.4)');
+  glow.addColorStop(1, 'rgba(255, 207, 138, 0)');
+  ctx.fillStyle = glow;
+  ctx.fillRect(width / 2 - 22 * m, star - 22 * m, 44 * m, 44 * m);
+
+  // Bengali has no capitals and its conjuncts need normal spacing.
+  const bengali = t.lang === 'bn';
+  ctx.font = `500 ${(bengali ? 17 : 14) * m}px ${FONT_UI}`;
+  ctx.letterSpacing = tracking(3.6 * m);
+  ctx.fillStyle = 'rgba(220, 228, 255, 0.7)';
+  ctx.fillText(bengali ? t.makeYourOwnSky : t.makeYourOwnSky.toUpperCase(), width / 2, middle);
+
+  ctx.letterSpacing = '0px';
+  ctx.font = `italic 300 ${30 * m}px ${FONT_DISPLAY}`;
+  ctx.fillStyle = 'rgba(255, 226, 186, 0.96)';
+  ctx.shadowColor = 'rgba(255, 207, 138, 0.35)';
+  ctx.shadowBlur = 20 * m;
+  const addressBaseline = middle + 50 * m;
+  const address = appAddress(t.lang);
+  const addressWidth = ctx.measureText(address).width;
+  const book = 28 * m;
+  const gap = 12 * m;
+  const start = width / 2 - (addressWidth + book + gap) / 2;
+  ctx.textAlign = 'left';
+  ctx.fillText(address, start + book + gap, addressBaseline);
+  ctx.shadowBlur = 0;
+  drawBook(ctx, start, addressBaseline - 23 * m, book, 'rgba(255, 226, 186, 0.96)');
+  ctx.restore();
 }
 
 function drawCaption(ctx: CanvasRenderingContext2D, caption: Caption, k: number) {
@@ -106,7 +169,7 @@ function drawCaption(ctx: CanvasRenderingContext2D, caption: Caption, k: number)
   ctx.fillText('FAMILY SPACE', margin, height - margin);
 
   // Opposite the brand, the address beside a small open book, as in the page's footer.
-  const address = exportAddress(t.lang);
+  const address = EXPORT_ADDRESS;
   ctx.textAlign = 'right';
   ctx.letterSpacing = '0px';
   ctx.font = `italic 300 ${17 * m}px ${FONT_DISPLAY}`;
@@ -119,12 +182,12 @@ function drawCaption(ctx: CanvasRenderingContext2D, caption: Caption, k: number)
 }
 
 /** The footer's open book, drawn at `size` with its top-left at (x, y). */
-function drawBook(ctx: CanvasRenderingContext2D, x: number, y: number, size: number) {
+function drawBook(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, color = 'rgba(240, 230, 210, 0.78)') {
   const s = size / 24;
   ctx.save();
   ctx.translate(x, y);
   ctx.scale(s, s);
-  ctx.strokeStyle = 'rgba(240, 230, 210, 0.78)';
+  ctx.strokeStyle = color;
   ctx.lineWidth = 1.6;
   ctx.lineJoin = 'round';
   ctx.stroke(new Path2D('M12 6.5C10.2 5.2 7.6 4.6 4 4.8v12.6c3.6-.2 6.2.4 8 1.7 1.8-1.3 4.4-1.9 8-1.7V4.8c-3.6-.2-6.2.4-8 1.7Zm0 0v12.6'));

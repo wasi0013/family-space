@@ -5,6 +5,7 @@ export const en: Strings = {
   lang: 'en',
   num: (n) => String(n),
   keys: { space: 'Space', enter: 'Enter' },
+  makeYourOwnSky: 'Make your own sky',
   creditLabel: 'Raising the Gifted Mind, the book behind Family Space (opens in a new tab)',
 
   tagline: 'Your life, written in starlight.',

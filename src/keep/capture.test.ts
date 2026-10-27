@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { exportAddress, slug } from './capture';
+import { appAddress, EXPORT_ADDRESS, slug } from './capture';
 
 describe('slug', () => {
   it.each([
@@ -13,9 +13,13 @@ describe('slug', () => {
   });
 });
 
-describe('exportAddress', () => {
-  it('leads English viewers to the app and Bengali viewers to its Bengali page', () => {
-    expect(exportAddress('en')).toBe('familyspace.raisingthegiftedmind.com');
-    expect(exportAddress('bn')).toBe('familyspace.raisingthegiftedmind.com/bn');
+describe('export addresses', () => {
+  it('marks every frame with the book’s home', () => {
+    expect(EXPORT_ADDRESS).toBe('raisingthegiftedmind.com');
+  });
+
+  it('invites viewers to make their own sky, in their language', () => {
+    expect(appAddress('en')).toBe('familyspace.raisingthegiftedmind.com');
+    expect(appAddress('bn')).toBe('familyspace.raisingthegiftedmind.com/bn');
   });
 });

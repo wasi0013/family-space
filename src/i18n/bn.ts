@@ -25,6 +25,7 @@ export const bn: Strings = {
   lang: 'bn',
   num,
   keys: { space: 'স্পেস', enter: 'এন্টার' },
+  makeYourOwnSky: 'নিজের আকাশ তৈরি করুন',
   creditLabel: 'Raising the Gifted Mind, Family Space-এর পেছনের বই (নতুন ট্যাবে খুলবে)',
 
   tagline: 'আপনার জীবন, তারার আলোয় লেখা।',

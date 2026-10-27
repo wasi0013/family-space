@@ -15,6 +15,8 @@ export interface Strings {
   keys: { space: string; enter: string };
   /** The footer link to the author's website. */
   creditLabel: string;
+  /** The invitation on the card that closes every recorded journey. */
+  makeYourOwnSky: string;
 
   tagline: string;
   beginKeys: [string, string];
