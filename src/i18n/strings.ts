@@ -77,6 +77,9 @@ export interface Strings {
   ageCaption: (name: string) => string;
   play: string;
   pause: string;
+  /** The buttons either side of play: a click skips between moments, holding sweeps the years. */
+  skipBack: string;
+  skipForward: string;
   editPeople: string;
   hint: { pause: string; step: string; drag: string; remember: string };
   touchHint: string;

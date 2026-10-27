@@ -6,6 +6,7 @@ import {
   CLOSE_RANKS_YEARS,
   frameBodies,
   HALO_FADE_YEARS,
+  HALO_REST,
   layoutScene,
   settleAge,
   SHOOT_YEARS,
@@ -275,12 +276,12 @@ describe("a departed person's star", () => {
   const scene = layout([dad]);
   const halo = (age: number) => frameOf(scene, 'dad', age)!.halo ?? 1;
 
-  it('arrives in its full glow, then settles into a crisp point that keeps a trace of it', () => {
+  it('arrives in its full glow, then settles into a crisp point that keeps a faint glow', () => {
     expect(halo(30 + ASCEND_YEARS / 2)).toBe(1);
     expect(halo(30 + ASCEND_YEARS)).toBeCloseTo(1, 6);
     expect(halo(30 + ASCEND_YEARS + HALO_FADE_YEARS / 2)).toBeLessThan(0.7);
-    expect(halo(30 + ASCEND_YEARS + HALO_FADE_YEARS)).toBeCloseTo(0.12, 6);
-    expect(halo(80)).toBeCloseTo(0.12, 6);
+    expect(halo(30 + ASCEND_YEARS + HALO_FADE_YEARS)).toBeCloseTo(HALO_REST, 6);
+    expect(halo(80)).toBeCloseTo(HALO_REST, 6);
   });
 
   it('keeps the glow of everyone still orbiting', () => {

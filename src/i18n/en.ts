@@ -87,6 +87,8 @@ export const en: Strings = {
   ageCaption: (name) => `${name} · age`,
   play: 'Play',
   pause: 'Pause',
+  skipBack: 'Previous moment, or hold to rewind',
+  skipForward: 'Next moment, or hold to fast-forward',
   editPeople: 'People',
   hint: { pause: 'pause', step: 'step a year', drag: 'drag the timeline to travel', remember: 'click a star to remember' },
   touchHint: 'Tap a star to remember · Drag the timeline through the years',

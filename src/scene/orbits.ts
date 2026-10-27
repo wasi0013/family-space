@@ -8,9 +8,9 @@ export const YEARS_PER_SECOND = 0.8;
 export const ARRIVE_YEARS = 0.8;
 export const SHOOT_YEARS = 1.2;
 export const ASCEND_YEARS = 1.8;
-/** Once a memorial star settles its glow fades over these years, to a trace that stays. */
+/** Once a memorial star settles its glow fades over these years, to a faint glow that stays. */
 export const HALO_FADE_YEARS = 3;
-const HALO_REST = 0.12;
+export const HALO_REST = 0.2;
 /** How long the rising thread lingers once a memorial star settles. */
 export const THREAD_FADE_YEARS = 1.5;
 

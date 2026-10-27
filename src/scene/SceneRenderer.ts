@@ -41,6 +41,10 @@ import { drawSelfStar, ignition, SETTLED, type Ignition } from './selfStar';
 import { stageAt, type StarStage } from './stellar';
 
 const MAX_DPR = 3;
+/** Holding a skip button sweeps through the years this many times faster than playing. */
+const SCAN_SPEED = 2;
+/** Going back within this many years of a moment's start passes it, to the moment before. */
+const SKIP_BACK_GRACE = 0.6;
 /** How far above, below and past the ends of the timeline a touch still takes hold of it. */
 const TIMELINE_SLOP = 26;
 /** How close a tap must land to a person to pick them, in CSS pixels. */
@@ -116,6 +120,10 @@ export class SceneRenderer {
   private skyStars = new Map<string, { x: number; y: number }>();
   private lastShown: LifelineMoment[] = [];
   private selfY = SELF_Y;
+  /** Set while a skip button is held: sweeping back (-1) or forward (1) through the years. */
+  private scanDirection: -1 | 0 | 1 = 0;
+  /** Whether the journey was playing when the sweep began, so letting go carries on as before. */
+  private scanResume = false;
   private focusId: string | null = null;
   private shownMoment: Moment | null | undefined = undefined;
 
@@ -195,6 +203,41 @@ export class SceneRenderer {
       this.playing = !wasRunning;
     }
     this.reportPlaying();
+  }
+
+  /**
+   * Sweeps through the years at twice the playing speed while a skip button is held, back or
+   * forward; 0 lets go, and the journey carries on as it was before.
+   */
+  scan(direction: -1 | 0 | 1) {
+    if (this.motionQuery.matches || direction === this.scanDirection) return;
+    if (this.scanDirection === 0) this.scanResume = this.playing || this.autoplay;
+    this.autoplay = false;
+    this.playing = direction === 0 && this.scanResume && this.age < this.endAge;
+    this.scanDirection = direction;
+    this.reportPlaying();
+  }
+
+  /**
+   * Goes to the next moment, or back to the one before; past the last it goes to today, and before
+   * the first to birth. Playing carries on from there.
+   */
+  skip(direction: -1 | 1) {
+    const ages = [...new Set(this.moments.map((m) => m.age))].sort((a, b) => a - b);
+    // Going back from just after a moment passes it, to the one before, as a "previous" should.
+    const target =
+      direction > 0
+        ? (ages.find((a) => a > this.age + 0.05) ?? this.profile.age)
+        : (ages.filter((a) => a < this.age - SKIP_BACK_GRACE).pop() ?? 0);
+    this.age = Math.min(this.endAge, Math.max(0, target));
+    if (this.autoplay) {
+      this.autoplay = false;
+      this.playing = true;
+    }
+    if (this.age >= this.endAge) this.playing = false;
+    this.reportAge();
+    this.reportPlaying();
+    this.redrawIfStill();
   }
 
   pause() {
@@ -306,7 +349,9 @@ export class SceneRenderer {
   };
 
   private advance(dt: number) {
-    if (this.playing) {
+    if (this.scanDirection !== 0) {
+      this.age = Math.min(this.endAge, Math.max(0, this.age + this.scanDirection * dt * YEARS_PER_SECOND * SCAN_SPEED));
+    } else if (this.playing) {
       // Time slows around each moment so it can be felt and its caption read.
       const speed = YEARS_PER_SECOND * playbackSpeed(this.moments, this.age);
       this.age = Math.min(this.endAge, this.age + dt * speed);
@@ -314,7 +359,9 @@ export class SceneRenderer {
     } else {
       this.idleSeconds += dt;
     }
-    const target = this.playing ? DRIFT_PLAYING : DRIFT_SETTLED;
+    // While sweeping, the sky drifts with the years, backward too.
+    const target =
+      this.scanDirection !== 0 ? DRIFT_PLAYING * SCAN_SPEED * this.scanDirection : this.playing ? DRIFT_PLAYING : DRIFT_SETTLED;
     this.driftSpeed += (target - this.driftSpeed) * Math.min(1, dt * DRIFT_EASE);
     skyScroll.y += this.driftSpeed * dt;
     this.reportAge();
@@ -329,7 +376,8 @@ export class SceneRenderer {
   }
 
   private reportPlaying() {
-    const running = this.playing || this.autoplay;
+    // A sweep through the years counts as playing, so the buttons stay out of the way.
+    const running = this.playing || this.autoplay || this.scanDirection !== 0;
     if (running === this.shownPlaying) return;
     this.shownPlaying = running;
     this.options.onPlayingChange(running);

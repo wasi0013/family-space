@@ -1,4 +1,4 @@
-import { COMPACT_WIDTH, type BodyFrame, type Layout, type Point } from './orbits';
+import { clamp01, COMPACT_WIDTH, HALO_REST, type BodyFrame, type Layout, type Point } from './orbits';
 import { drawSpikes, glowDisc } from './selfStar';
 
 const LABEL_PX = 12;
@@ -80,6 +80,8 @@ export function drawTrail(ctx: CanvasRenderingContext2D, frame: BodyFrame) {
 
 /** How deeply a star can dim when it twinkles: memorial stars like real ones, orbiters gently. */
 const MEMORIAL_TWINKLE = 0.6;
+/** How far a departed star's resting glow swells and ebbs either way as it breathes. */
+const HALO_BREATH = 0.55;
 const ORBIT_TWINKLE = 0.22;
 const rhythmCache = new Map<string, Rhythm>();
 
@@ -131,8 +133,11 @@ export function drawBody(ctx: CanvasRenderingContext2D, frame: BodyFrame, second
   const a = frame.alpha * twinkle;
   // The glow draws in a little as the star dims, as a real one does.
   const size = frame.scale * (1 + frame.glow * 0.8) * (frame.memorial ? 1.2 : 1) * (1 - 0.18 * depth * dip);
-  // The soft glow, which a star among the departed lets go of as it settles.
-  const halo = frame.halo ?? 1;
+  // The soft glow, which a star among the departed lets go of as it settles, keeping a faint one
+  // that slowly breathes, each in its own rhythm.
+  const settled = frame.memorial ? clamp01((1 - (frame.halo ?? 1)) / (1 - HALO_REST)) : 0;
+  const breath = 1 + HALO_BREATH * settled * Math.sin(seconds * 0.7 * rhythmOf(frame.person.id).tempo + rhythmOf(frame.person.id).phase);
+  const halo = (frame.halo ?? 1) * breath;
   glowDisc(ctx, frame.x, frame.y, 18 * size * (0.55 + 0.45 * halo), [
     [0, `rgba(${color}, ${0.6 * a * halo})`],
     [0.25, `rgba(${color}, ${0.2 * a * halo})`],

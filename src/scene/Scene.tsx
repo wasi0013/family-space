@@ -38,6 +38,60 @@ interface Remembering {
   y: number;
 }
 
+/** Held longer than this, a skip button sweeps through the years instead of jumping. */
+const HOLD_MS = 260;
+
+/**
+ * Either side of play: a click goes to the previous or next moment, and pressing and holding
+ * sweeps back or forward through the years at double speed until let go.
+ */
+function SkipButton({ direction, rendererRef }: { direction: -1 | 1; rendererRef: RefObject<SceneRenderer | null> }) {
+  const press = useRef<{ timer: number; holding: boolean } | null>(null);
+
+  const release = (jump: boolean) => {
+    const current = press.current;
+    if (!current) return;
+    press.current = null;
+    clearTimeout(current.timer);
+    if (current.holding) rendererRef.current?.scan(0);
+    else if (jump) rendererRef.current?.skip(direction);
+  };
+  useEffect(() => () => release(false), []);
+
+  const label = direction < 0 ? t.skipBack : t.skipForward;
+  return (
+    <button
+      type="button"
+      className="hud-skip"
+      aria-label={label}
+      title={label}
+      onPointerDown={(event) => {
+        if (event.button !== 0) return;
+        event.currentTarget.setPointerCapture(event.pointerId);
+        const timer = window.setTimeout(() => {
+          if (!press.current) return;
+          press.current.holding = true;
+          rendererRef.current?.scan(direction);
+        }, HOLD_MS);
+        press.current = { timer, holding: false };
+      }}
+      onPointerUp={() => release(true)}
+      onPointerCancel={() => release(false)}
+      onLostPointerCapture={() => release(false)}
+      // The pointer is handled above; a keyboard presses with a click alone, which jumps.
+      onClick={(event) => {
+        if (event.detail === 0) rendererRef.current?.skip(direction);
+      }}
+      // A long press on a phone must not open a menu.
+      onContextMenu={(event) => event.preventDefault()}
+    >
+      <svg viewBox="0 0 16 16" aria-hidden="true">
+        {direction < 0 ? <path d="M13.5 3.6v8.8L8.2 8zM7.6 3.6v8.8L2.3 8z" /> : <path d="M2.5 3.6v8.8L7.8 8zM8.4 3.6v8.8L13.7 8z" />}
+      </svg>
+    </button>
+  );
+}
+
 /** How long "Make it yours" waits for its confirming second click. */
 const CONFIRM_MS = 4000;
 
@@ -209,16 +263,20 @@ export function Scene({
         <span className="hud-age" ref={ageRef}>
           {t.num(0)}
         </span>
-        <button
-          type="button"
-          className="hud-play"
-          onClick={() => rendererRef.current?.togglePlay()}
-          aria-label={playing ? t.pause : t.play}
-        >
-          <svg viewBox="0 0 16 16" aria-hidden="true">
-            {playing ? <path d="M5 3.5h2v9H5zM9 3.5h2v9H9z" /> : <path d="M5.5 3.2v9.6L12.5 8z" />}
-          </svg>
-        </button>
+        <div className="hud-controls">
+          <SkipButton direction={-1} rendererRef={rendererRef} />
+          <button
+            type="button"
+            className="hud-play"
+            onClick={() => rendererRef.current?.togglePlay()}
+            aria-label={playing ? t.pause : t.play}
+          >
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              {playing ? <path d="M5 3.5h2v9H5zM9 3.5h2v9H9z" /> : <path d="M5.5 3.2v9.6L12.5 8z" />}
+            </svg>
+          </button>
+          <SkipButton direction={1} rendererRef={rendererRef} />
+        </div>
       </div>
       {/* While the journey plays the buttons step aside; pausing brings them back. */}
       <div className={playing ? 'scene-actions is-quiet' : 'scene-actions'}>
