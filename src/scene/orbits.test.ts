@@ -184,15 +184,22 @@ describe('people passing through', () => {
     return Math.hypot(f.x - scene.cx, (f.y - scene.cy) / scene.tilt);
   };
 
-  it('pass by once like a comet: in from far away, close in the middle, out again', () => {
+  it('pass by once: in from far away, close in the middle, out again', () => {
     const scene = layout([mom, sam]);
-    const start = distance(scene, 10);
-    const middle = distance(scene, 15);
-    const end = distance(scene, 20 - 1e-6);
-    expect(start).toBeGreaterThan(scene.reach * 0.9);
-    expect(middle).toBeLessThan(scene.minRadius * 1.5);
-    expect(end).toBeGreaterThan(scene.reach * 0.5);
-    expect(end).toBeLessThan(start);
+    expect(distance(scene, 10)).toBeGreaterThan(scene.reach * 0.6);
+    expect(distance(scene, 15)).toBeLessThan(scene.minRadius * 1.5);
+    expect(distance(scene, 20 - 1e-6)).toBeGreaterThan(scene.reach * 0.6);
+  });
+
+  it('come in on a straight line, swing round, and leave on a straight line', () => {
+    const scene = layout([sam]);
+    const pointsAt = (ages: number[]) => ages.map((age) => frameOf(scene, 'sam', age)!);
+    const straight = ([a, b, c]: { x: number; y: number }[]) =>
+      Math.abs((b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)) / (Math.hypot(c.x - a.x, c.y - a.y) || 1);
+    // Off-line distance of the middle point, in pixels.
+    expect(straight(pointsAt([10.3, 10.6, 10.9]))).toBeLessThan(0.01);
+    expect(straight(pointsAt([19.1, 19.4, 19.7]))).toBeLessThan(0.01);
+    expect(straight(pointsAt([13, 15, 17]))).toBeGreaterThan(10);
   });
 
   it('spend most of their stay swinging close by', () => {
@@ -207,12 +214,13 @@ describe('people passing through', () => {
     expect(frameOf(withComet, 'sam', 15)!.orbitRadius).toBeNull();
   });
 
-  it('carry a tail that points away from your star', () => {
+  it('leave a trail along the path they have flown, straight on the way in', () => {
     const scene = layout([sam]);
-    const f = frameOf(scene, 'sam', 15)!;
-    const tailEnd = f.trail[0];
-    const fromStar = Math.hypot(f.x - scene.cx, f.y - scene.cy);
-    expect(Math.hypot(tailEnd.x - scene.cx, tailEnd.y - scene.cy)).toBeGreaterThan(fromStar);
+    const f = frameOf(scene, 'sam', 10.6)!;
+    const [a, b, c] = [f.trail[0], f.trail[Math.floor(f.trail.length / 2)], f.trail.at(-1)!];
+    expect(Math.abs((b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)) / Math.hypot(c.x - a.x, c.y - a.y)).toBeLessThan(0.01);
+    expect(c.x).toBeCloseTo(f.x, 6);
+    expect(c.y).toBeCloseTo(f.y, 6);
   });
 
   it('move smoothly along their pass', () => {

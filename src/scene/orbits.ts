@@ -50,14 +50,16 @@ interface Track {
 }
 
 /**
- * Someone passing through your life makes one pass around your star, as a comet does: in from
- * the outer sky, a swing around you at its closest, and back out.
+ * Someone passing through your life makes one pass by your star: straight in from the outer sky,
+ * a swing part of the way round you, and straight out on a new heading.
  */
 interface Comet {
-  /** Closest approach, as a share of the innermost lane. */
+  /** How far out the swing runs, as a share of the innermost lane. */
   closest: number;
-  /** Which way the closest point faces. */
-  heading: number;
+  /** Where on the circle around your star the swing begins. */
+  entry: number;
+  /** How far round the swing carries them, in radians: about half a turn. */
+  arc: number;
   /** 1 to swing anticlockwise, -1 clockwise. */
   spin: number;
 }
@@ -149,7 +151,12 @@ export function layoutScene(
           };
     const comet =
       person.bond === 'temporary' && person.departAge !== null
-        ? { closest: 0.8 + 0.6 * rand(), heading: rand() * Math.PI * 2, spin: rand() < 0.5 ? -1 : 1 }
+        ? {
+            closest: 0.85 + 0.55 * rand(),
+            entry: rand() * Math.PI * 2,
+            arc: Math.PI * (0.72 + 0.24 * rand()),
+            spin: rand() < 0.5 ? -1 : 1,
+          }
         : null;
     return { person, earlier, period, phase, wobble, slot, comet };
   });
@@ -266,7 +273,7 @@ function frameBody(
 
   const since = age - depart;
   const theta = angleAt(depart);
-  const pass = track.comet && cometPass(layout, track.comet, track.person, depart, reshape);
+  const pass = track.comet && cometDeparture(layout, track.comet, track.person, reshape);
   const origin = pass ? pass.pos : orbitPoint(layout, reshape(laneRadius(layout, track, depart), depart), theta);
 
   if (person.bond === 'temporary') {
@@ -328,29 +335,26 @@ function frameBody(
   };
 }
 
-/** How open the comet's path is: above 1 it never comes back, like a comet passing once. */
-const COMET_ECCENTRICITY = 1.35;
-/** How far out a comet comes in from, and has reached when it leaves, as shares of the sky's reach. */
-const COMET_FROM = 0.95;
-const COMET_TO = 0.55;
-/** How much of the pass is spent swinging close by, against rushing in and out at its ends. */
-const COMET_LINGER = 0.4;
-const COMET_TAIL_POINTS = 24;
+/** How far the straight runs in and out reach, as a share of the sky's reach. */
+const COMET_RUN = 0.7;
+/**
+ * How the pass is paced: low values crowd the time into the swing, so the straight runs go
+ * quickly and most of the stay is spent close by. Speed never jumps.
+ */
+const COMET_LINGER = 0.15;
+/** How long a comet's trail is, measured back along the path it has flown. */
+const COMET_TRAIL_PX = 130;
+const COMET_TAIL_POINTS = 28;
 
 interface Pass {
-  pos: Point;
-  /** Which way it is moving, on screen. */
-  heading: Point;
-  /** Distance from your star in the orbits' plane. */
-  distance: number;
-  closest: number;
-  angle: number;
+  /** Where on its path a comet is, measured from the start in plane pixels. */
+  at: number;
+  /** The whole path's length. */
+  length: number;
+  pointAt: (distance: number) => { pos: Point; angle: number };
 }
 
-/**
- * Where a comet is on its pass at `age`. Its path is a hyperbola around your star; the pass is
- * timed so the far ends go quickly and most of the stay is the swing close by.
- */
+/** The comet's path in the orbits' plane: a straight run in, an arc around you, a straight run out. */
 function cometPass(
   layout: Layout,
   comet: Comet,
@@ -358,30 +362,40 @@ function cometPass(
   age: number,
   reshape: (radius: number, age: number) => number,
 ): Pass {
-  const e = COMET_ECCENTRICITY;
-  const closest = reshape(layout.minRadius * comet.closest, age);
-  const semi = closest * (1 + e);
-  const reachTo = (r: number) => Math.acos(Math.min(1, Math.max(-1, (semi / r - 1) / e)));
-  const into = reachTo(layout.reach * COMET_FROM);
-  const outTo = reachTo(layout.reach * COMET_TO);
+  const radius = reshape(layout.minRadius * comet.closest, age);
+  const run = layout.reach * COMET_RUN;
+  const swing = comet.arc * radius;
+  const length = run * 2 + swing;
+  const { spin } = comet;
+  // Moving round the circle, the way along it at angle θ.
+  const along = (theta: number) => ({ x: -spin * Math.sin(theta), y: spin * Math.cos(theta) });
+  const onCircle = (theta: number) => ({ x: radius * Math.cos(theta), y: radius * Math.sin(theta) });
+  const exit = comet.entry + spin * comet.arc;
+  const toScreen = (p: Point) => ({ x: layout.cx + p.x, y: layout.cy + p.y * layout.tilt });
+
+  const pointAt = (distance: number) => {
+    let p: Point;
+    if (distance < run) {
+      // The straight run in, meeting the circle along its edge so there is no kink.
+      const back = run - distance;
+      const start = onCircle(comet.entry);
+      const way = along(comet.entry);
+      p = { x: start.x - way.x * back, y: start.y - way.y * back };
+    } else if (distance < run + swing) {
+      p = onCircle(comet.entry + (spin * (distance - run)) / radius);
+    } else {
+      const out = distance - run - swing;
+      const start = onCircle(exit);
+      const way = along(exit);
+      p = { x: start.x + way.x * out, y: start.y + way.y * out };
+    }
+    return { pos: toScreen(p), angle: Math.atan2(p.y, p.x) };
+  };
+
   const span = person.departAge! - person.joinAge;
   const x = 2 * clamp01((age - person.joinAge) / Math.max(0.01, span)) - 1;
-  const warp = Math.sign(x) * (COMET_LINGER * Math.abs(x) + (1 - COMET_LINGER) * Math.abs(x) ** 3);
-  const at = (nu: number) => {
-    const r = semi / (1 + e * Math.cos(nu));
-    const angle = comet.heading + comet.spin * nu;
-    return { r, angle, pos: { x: layout.cx + r * Math.cos(angle), y: layout.cy + r * layout.tilt * Math.sin(angle) } };
-  };
-  const nu = warp < 0 ? warp * into : warp * outTo;
-  const here = at(nu);
-  const ahead = at(nu + 0.01);
-  return {
-    pos: here.pos,
-    heading: { x: ahead.pos.x - here.pos.x, y: ahead.pos.y - here.pos.y },
-    distance: here.r,
-    closest,
-    angle: here.angle,
-  };
+  const paced = Math.sign(x) * (COMET_LINGER * Math.abs(x) + (1 - COMET_LINGER) * Math.abs(x) ** 3);
+  return { at: (length * (1 + paced)) / 2, length, pointAt };
 }
 
 function cometFrame(
@@ -393,26 +407,16 @@ function cometFrame(
 ): BodyFrame {
   const { person } = track;
   const pass = cometPass(layout, comet, person, age, reshape);
-  const { pos } = pass;
+  const { pos, angle } = pass.pointAt(pass.at);
   const appear = smoothstep(0, Math.min(ARRIVE_YEARS, (person.departAge! - person.joinAge) * 0.15), age - person.joinAge);
-  const depth = Math.sin(pass.angle);
+  const depth = Math.sin(angle);
   const near = (depth + 1) / 2;
 
-  // The tail streams straight away from your star, longest as it swings closest, and curves a
-  // little back along the way it came.
-  const away = { x: pos.x - layout.cx, y: pos.y - layout.cy };
-  const awayLength = Math.hypot(away.x, away.y) || 1;
-  const back = { x: -pass.heading.x, y: -pass.heading.y };
-  const backLength = Math.hypot(back.x, back.y) || 1;
-  const tail = 24 + 96 * (pass.closest / pass.distance) ** 1.2;
+  // The trail is the path just flown: straight on the way in, curving through the swing.
   const trail: Point[] = [];
-  for (let k = 0; k <= COMET_TAIL_POINTS; k++) {
-    const f = 1 - k / COMET_TAIL_POINTS;
-    trail.push({
-      x: pos.x + (away.x / awayLength) * tail * f + (back.x / backLength) * tail * 0.45 * f * f,
-      y: pos.y + (away.y / awayLength) * tail * f + (back.y / backLength) * tail * 0.45 * f * f,
-    });
-  }
+  const from = Math.max(0, pass.at - COMET_TRAIL_PX);
+  for (let k = 0; k <= COMET_TAIL_POINTS; k++) trail.push(pass.pointAt(from + ((pass.at - from) * k) / COMET_TAIL_POINTS).pos);
+
   const washout = glare(layout, pos, depth);
   return {
     person,
@@ -428,6 +432,19 @@ function cometFrame(
     orbitRadius: null,
     memorial: false,
   };
+}
+
+/** Where a comet is as it leaves, and which way it is heading then. */
+function cometDeparture(
+  layout: Layout,
+  comet: Comet,
+  person: Person,
+  reshape: (radius: number, age: number) => number,
+): { pos: Point; heading: Point } {
+  const pass = cometPass(layout, comet, person, person.departAge!, reshape);
+  const end = pass.pointAt(pass.length).pos;
+  const before = pass.pointAt(pass.length - 1).pos;
+  return { pos: end, heading: { x: end.x - before.x, y: end.y - before.y } };
 }
 
 function orbitPoint(layout: Layout, radius: number, theta: number): Point {
