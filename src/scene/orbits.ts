@@ -14,6 +14,8 @@ export const THREAD_FADE_YEARS = 1.5;
 /** Orbits are circles seen at an angle; this flattens them into ellipses. Tall screens see more. */
 const TILT = 0.36;
 const PORTRAIT_TILT = 0.5;
+/** Screens narrower than this are the smallest phones, where every pixel of the system counts. */
+export const COMPACT_WIDTH = 360;
 /** Seconds for the innermost orbit to go round once; slow enough to read every label. */
 const INNER_REVOLUTION_S = 90;
 /** Once someone leaves, the people outside them close ranks over this many years. */
@@ -118,12 +120,14 @@ export function layoutScene(
   const tilt = width < height * 0.8 ? PORTRAIT_TILT : TILT;
   const maxRadius = Math.max(80, Math.min(width * 0.44, (height - cy - clearance) / tilt, MAX_SYSTEM_RADIUS));
   // The first lane stays clear of the self star's glare and light spikes.
-  const minRadius = Math.min(96, Math.max(56, Math.min(width, height) * 0.1));
+  // On the smallest phones lanes start closer in, so they can sit far enough apart to read.
+  const compact = width < COMPACT_WIDTH;
+  const minRadius = Math.min(96, Math.max(compact ? 44 : 56, Math.min(width, height) * 0.1));
   // Lanes sit a fixed step apart so the system stays compact, tightening only if the busiest
   // moment of the life would not otherwise fit.
   const busiest = peakPresence(people);
   const laneGap = Math.min(
-    Math.min(38, Math.max(18, Math.min(width, height) * 0.045)),
+    Math.min(38, Math.max(compact ? 14 : 18, Math.min(width, height) * 0.045)),
     (maxRadius - minRadius) / Math.max(1, busiest - 1),
   );
   const outerRadius = minRadius + laneGap * Math.max(0, busiest - 1);

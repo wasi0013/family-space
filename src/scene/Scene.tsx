@@ -120,33 +120,37 @@ export function Scene({
       event.preventDefault();
     };
 
-    // Tap a person to remember them, or the empty sky to play or pause; drag sideways to travel
-    // through the years. One drag across the whole screen spans the whole life.
-    let gesture: { id: number; x: number; y: number; age: number; scrubbing: boolean } | null = null;
+    // Tap a person or a moment to remember it, or the empty sky to play or pause. Only the
+    // timeline travels through the years: touch it to go to a year, or drag along it. A stray
+    // swipe across the sky does nothing, so an unsteady hand never sends the years spinning.
+    let gesture: { id: number; x: number; y: number; onTimeline: boolean; moved: boolean; scrubbing: boolean } | null = null;
     const onPointerDown = (event: PointerEvent) => {
       if (event.button !== 0 || gesture) return;
-      gesture = { id: event.pointerId, x: event.clientX, y: event.clientY, age: renderer.currentAge, scrubbing: false };
+      const onTimeline = renderer.timelineAgeAt(event.clientX, event.clientY) !== null;
+      gesture = { id: event.pointerId, x: event.clientX, y: event.clientY, onTimeline, moved: false, scrubbing: false };
       canvas.setPointerCapture(event.pointerId);
     };
     const onPointerMove = (event: PointerEvent) => {
       if (!gesture) {
         const over = renderer.personAt(event.clientX, event.clientY) ?? renderer.momentAt(event.clientX, event.clientY);
         canvas.classList.toggle('is-over-person', over !== null);
+        canvas.classList.toggle('is-over-timeline', over === null && renderer.timelineAgeAt(event.clientX, event.clientY) !== null);
         return;
       }
       if (event.pointerId !== gesture.id) return;
-      const dx = event.clientX - gesture.x;
-      if (!gesture.scrubbing && Math.hypot(dx, event.clientY - gesture.y) < TAP_SLOP_PX) return;
+      if (!gesture.moved && Math.hypot(event.clientX - gesture.x, event.clientY - gesture.y) < TAP_SLOP_PX) return;
+      gesture.moved = true;
+      if (!gesture.onTimeline) return;
       gesture.scrubbing = true;
       canvas.classList.add('is-scrubbing');
-      renderer.seek(gesture.age + (dx / canvas.clientWidth) * renderer.lifespan);
+      renderer.seek(renderer.timelineAge(event.clientX));
     };
     const onPointerUp = (event: PointerEvent) => {
       if (!gesture || event.pointerId !== gesture.id) return;
-      const tapped = !gesture.scrubbing;
+      const { moved, onTimeline } = gesture;
       gesture = null;
       canvas.classList.remove('is-scrubbing');
-      if (!tapped) return;
+      if (moved) return;
       const person = renderer.personAt(event.clientX, event.clientY);
       const moment = person ? null : renderer.momentAt(event.clientX, event.clientY);
       if (person || moment) {
@@ -159,6 +163,8 @@ export function Scene({
         );
       } else if (rememberingRef.current) {
         setRemembering(null);
+      } else if (onTimeline) {
+        renderer.seek(renderer.timelineAge(event.clientX));
       } else {
         renderer.togglePlay();
       }
@@ -214,7 +220,8 @@ export function Scene({
           </svg>
         </button>
       </div>
-      <div className="scene-actions">
+      {/* While the journey plays the buttons step aside; pausing brings them back. */}
+      <div className={playing ? 'scene-actions is-quiet' : 'scene-actions'}>
         <Keep profile={profile} skyRef={skyRef} sceneRef={canvasRef} rendererRef={rendererRef} />
         <EditMenu onEditPeople={onEditPeople} onEditMoments={onEditMoments} />
         {onMakeItYours && <MakeItYours confirmFirst={replacesSaved} onConfirm={onMakeItYours} />}

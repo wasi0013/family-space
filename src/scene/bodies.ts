@@ -1,4 +1,4 @@
-import type { BodyFrame, Layout } from './orbits';
+import { COMPACT_WIDTH, type BodyFrame, type Layout, type Point } from './orbits';
 import { drawSpikes, glowDisc } from './selfStar';
 
 const LABEL_PX = 12;
@@ -144,7 +144,10 @@ export function drawBody(ctx: CanvasRenderingContext2D, frame: BodyFrame, second
   ]);
 }
 
-const LABEL_FONT = `500 ${LABEL_PX}px "Inter Variable", "Hind Siliguri", ui-sans-serif, system-ui, sans-serif`;
+const LABEL_FAMILY = '"Inter Variable", "Hind Siliguri", ui-sans-serif, system-ui, sans-serif';
+const LABEL_FONT = `500 ${LABEL_PX}px ${LABEL_FAMILY}`;
+/** Names on the smallest phones: a touch smaller, and free to sit beside their star. */
+const COMPACT_LABEL_PX = 11;
 /** Labels that can't find clear space fade back to this much of their opacity. */
 const CROWDED_LABEL_ALPHA = 0.3;
 
@@ -161,7 +164,9 @@ interface Box {
  * fade back.
  */
 export function drawLabels(ctx: CanvasRenderingContext2D, frames: readonly BodyFrame[], focusId: string | null = null) {
-  ctx.font = LABEL_FONT;
+  const compact = (ctx.canvas.clientWidth || ctx.canvas.width) < COMPACT_WIDTH;
+  const px = compact ? COMPACT_LABEL_PX : LABEL_PX;
+  ctx.font = compact ? `500 ${px}px ${LABEL_FAMILY}` : LABEL_FONT;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'alphabetic';
   const claimed: Box[] = [];
@@ -172,20 +177,34 @@ export function drawLabels(ctx: CanvasRenderingContext2D, frames: readonly BodyF
   for (const frame of visible) {
     const half = ctx.measureText(frame.person.name).width / 2 + 3;
     const offset = 14 * frame.scale;
-    const spots = [frame.y - offset, frame.y + offset + LABEL_PX];
-    const boxAt = (baseline: number): Box => ({
-      left: frame.x - half,
-      right: frame.x + half,
-      top: baseline - LABEL_PX,
-      bottom: baseline + 3,
+    // Above the star, then below; on the smallest phones also to its right or left.
+    const side = 9 * frame.scale + half;
+    const spots: Point[] = [
+      { x: frame.x, y: frame.y - offset },
+      { x: frame.x, y: frame.y + offset + px },
+      ...(compact
+        ? [
+            { x: frame.x + side, y: frame.y + px * 0.35 },
+            { x: frame.x - side, y: frame.y + px * 0.35 },
+          ]
+        : []),
+    ];
+    const boxAt = (spot: Point): Box => ({
+      left: spot.x - half,
+      right: spot.x + half,
+      top: spot.y - px,
+      bottom: spot.y + 3,
     });
-    const free = spots.find((baseline) => !claimed.some((box) => overlaps(box, boxAt(baseline))));
-    const baseline = free ?? spots[0];
+    const free = spots.find((spot) => !claimed.some((box) => overlaps(box, boxAt(spot))));
     if (free !== undefined) claimed.push(boxAt(free));
-    const lit = frame.person.id === focusId ? 1 : frame.labelAlpha;
+    const focused = frame.person.id === focusId;
+    // With no room on the smallest phones a name waits for its star to move on; a tap still names it.
+    if (free === undefined && compact && !focused) continue;
+    const spot = free ?? spots[0];
+    const lit = focused ? 1 : frame.labelAlpha;
     const alpha = lit * (free === undefined ? CROWDED_LABEL_ALPHA : 1);
     ctx.fillStyle = `rgba(${rgb(frame.person.color, 0.3)}, ${0.92 * alpha})`;
-    ctx.fillText(frame.person.name, frame.x, baseline);
+    ctx.fillText(frame.person.name, spot.x, spot.y);
   }
 }
 

@@ -88,8 +88,8 @@ export const en: Strings = {
   play: 'Play',
   pause: 'Pause',
   editPeople: 'People',
-  hint: { pause: 'pause', step: 'step a year', drag: 'drag to travel', remember: 'click a star to remember' },
-  touchHint: 'Tap a star to remember · Drag through the years',
+  hint: { pause: 'pause', step: 'step a year', drag: 'drag the timeline to travel', remember: 'click a star to remember' },
+  touchHint: 'Tap a star to remember · Drag the timeline through the years',
 
   keep: 'Keep',
   recordJourney: 'Record your journey',

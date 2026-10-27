@@ -39,6 +39,7 @@ import {
   type MomentPoint,
 } from './momentSky';
 import {
+  COMPACT_WIDTH,
   frameBodies,
   layoutScene,
   settleAge,
@@ -50,12 +51,16 @@ import { drawSelfStar, ignition, SETTLED, type Ignition } from './selfStar';
 import { stageAt, type StarStage } from './stellar';
 
 const MAX_DPR = 3;
+/** How far above, below and past the ends of the timeline a touch still takes hold of it. */
+const TIMELINE_SLOP = 26;
 /** How close a tap must land to a person to pick them, in CSS pixels. */
 const HIT_RADIUS = 24;
 /** Vertical position of the person's star as a fraction of the viewport; leaves the upper sky open. */
 export const SELF_Y = 0.56;
 /** With a lifeline below, the system rises a little to leave it room above the age. */
 const LIFELINE_SELF_Y = 0.5;
+/** On the smallest phones a little higher still, so the system can be large enough to read. */
+const COMPACT_SELF_Y = 0.47;
 const LIFELINE_CLEARANCE = 236;
 /** Playback starts once the self star has finished igniting. */
 const PLAY_DELAY_S = 2.6;
@@ -265,6 +270,35 @@ export class SceneRenderer {
     return nearest && { moment: nearest.moment, x: nearest.x, y: nearest.y };
   }
 
+  /**
+   * The age at a point on the timeline, or null when the point is off it: only the timeline
+   * travels through the years, so a stray touch elsewhere on the sky never does.
+   */
+  timelineAgeAt(x: number, y: number): number | null {
+    const zone = this.timelineZone();
+    if (!zone || x < zone.left - TIMELINE_SLOP || x > zone.right + TIMELINE_SLOP || y < zone.top || y > zone.bottom) return null;
+    return this.timelineAge(x);
+  }
+
+  /** The age along the timeline under `x`, wherever the finger has drifted above or below it. */
+  timelineAge(x: number): number {
+    const zone = this.timelineZone();
+    if (!zone) return this.age;
+    return (Math.min(1, Math.max(0, (x - zone.left) / (zone.right - zone.left))) * this.profile.age);
+  }
+
+  private timelineZone(): { left: number; right: number; top: number; bottom: number } | null {
+    if (this.lifeline) {
+      const { left, right, y } = this.lifeline;
+      return { left, right, top: y - TIMELINE_SLOP, bottom: y + TIMELINE_SLOP };
+    }
+    if (this.constellation) {
+      const { left, right, mid, wander, baseline } = this.constellation;
+      return { left, right, top: mid - wander - TIMELINE_SLOP, bottom: baseline + TIMELINE_SLOP };
+    }
+    return null;
+  }
+
   step(years: number) {
     this.seek(Math.min(this.profile.age, Math.round(this.age) + years));
   }
@@ -352,16 +386,16 @@ export class SceneRenderer {
     this.height = this.canvas.clientHeight;
     this.canvas.width = Math.round(this.width * this.dpr);
     this.canvas.height = Math.round(this.height * this.dpr);
-    const lifeline = this.moments.length > 0 && usesLifeline(this.width);
-    this.selfY = lifeline ? LIFELINE_SELF_Y : SELF_Y;
+    // There is always a timeline, even with no moments, as the one place to travel through the years.
+    const lifeline = usesLifeline(this.width);
+    this.selfY = lifeline ? (this.width < COMPACT_WIDTH ? COMPACT_SELF_Y : LIFELINE_SELF_Y) : SELF_Y;
     // The sky turns around your star when you move home.
     skyScroll.pivotY = this.selfY;
     this.layout = lifeline
       ? layoutScene(this.people, this.width, this.height, this.selfY, this.profile.age, LIFELINE_CLEARANCE)
       : layoutScene(this.people, this.width, this.height, this.selfY, this.profile.age);
     const systemBottom = this.layout.cy + this.layout.outerRadius * this.layout.tilt;
-    this.constellation =
-      this.moments.length && !lifeline ? layoutConstellation(this.width, this.height, systemBottom, this.profile.age) : null;
+    this.constellation = lifeline ? null : layoutConstellation(this.width, this.height, systemBottom, this.profile.age);
     this.lifeline = lifeline ? layoutLifeline(this.width, this.height, this.profile.age) : null;
     this.skyStars = this.lifeline ? this.placeSkyStars(this.lifeline, this.layout) : new Map();
     this.redrawIfStill();
@@ -456,13 +490,16 @@ export class SceneRenderer {
    */
   private placeSkyStars(line: Lifeline, layout: Layout) {
     const swell = selfStarRadius(this.width, this.height) * (this.stageAt(this.profile.age).scale - 1) * 2.4;
-    const top = Math.max(84, this.height * 0.11);
-    const bottom = Math.max(top + 24, layout.cy - (layout.outerRadius + swell) * layout.tilt - 36);
+    // The smallest phones have little sky to spare, so it starts just under the buttons.
+    const compact = this.width < COMPACT_WIDTH;
+    const top = compact ? 58 : Math.max(84, this.height * 0.11);
+    const bottom = Math.max(top + 24, layout.cy - (layout.outerRadius + swell) * layout.tilt - (compact ? 26 : 36));
     const avoid: Box[] = [];
     for (const track of layout.tracks) {
       if (!track.slot) continue;
-      const half = track.person.name.length * 3.6 + 12;
-      avoid.push({ left: track.slot.x - half, right: track.slot.x + half, top: track.slot.y - 30, bottom: track.slot.y + 10 });
+      // The star and its name above it, about as wide as the name is drawn.
+      const half = track.person.name.length * 3.4 + 4;
+      avoid.push({ left: track.slot.x - half, right: track.slot.x + half, top: track.slot.y - 27, bottom: track.slot.y + 6 });
     }
     return placeSkyMoments(line, this.moments, top, bottom, avoid);
   }
