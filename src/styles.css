@@ -122,6 +122,32 @@ body,
   font: inherit;
 }
 
+.start-over {
+  margin-top: 14px;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  font: 400 12px/1 var(--font-ui);
+  letter-spacing: 0.04em;
+  color: var(--ink-faint);
+  cursor: pointer;
+  transition: color 0.25s ease;
+  animation: fade-in 1.2s ease 2.8s both;
+}
+
+.start-over:hover,
+.start-over:focus-visible {
+  outline: none;
+  color: var(--ink-soft);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.start-over.is-confirming {
+  color: var(--error);
+}
+
 .begin-touch {
   display: none;
 }
@@ -142,7 +168,8 @@ body,
 }
 
 .is-leaving .tagline,
-.is-leaving .begin {
+.is-leaving .begin,
+.is-leaving .start-over {
   animation: fade-out 0.45s ease forwards;
 }
 
@@ -510,6 +537,32 @@ body,
   font-variant-numeric: lining-nums tabular-nums;
   color: #fff6e8;
   text-shadow: 0 0 24px rgba(255, 200, 140, 0.35);
+}
+
+.scene-action {
+  position: fixed;
+  top: max(16px, env(safe-area-inset-top));
+  right: max(16px, env(safe-area-inset-right));
+  padding: 9px 16px;
+  border: 1px solid rgba(200, 212, 255, 0.18);
+  border-radius: 999px;
+  background: rgba(3, 4, 11, 0.35);
+  font: 500 11px/1 var(--font-ui);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition:
+    color 0.25s ease,
+    border-color 0.25s ease;
+  animation: fade-in 1.2s ease 3s both;
+}
+
+.scene-action:hover,
+.scene-action:focus-visible {
+  outline: none;
+  color: var(--ink);
+  border-color: rgba(214, 224, 255, 0.55);
 }
 
 .controls-hint {

@@ -103,20 +103,22 @@ function describe(person: Person): string {
 
 interface PeopleProps {
   profile: Profile;
-  step: number;
-  totalSteps: number;
+  /** People already in the sky, when coming back to edit them. */
+  initialPeople?: Person[];
+  /** Shown as "step / total" during onboarding; omitted when editing later. */
+  step?: number;
+  totalSteps?: number;
   onComplete: (people: Person[]) => void;
 }
 
-export function People({ profile, step, totalSteps, onComplete }: PeopleProps) {
-  const [people, setPeople] = useState<Person[]>([]);
+export function People({ profile, initialPeople = [], step, totalSteps, onComplete }: PeopleProps) {
+  const [people, setPeople] = useState<Person[]>(initialPeople);
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState('');
   const nameRef = useRef<HTMLInputElement>(null);
   const joinRef = useRef<HTMLInputElement>(null);
   const departRef = useRef<HTMLInputElement>(null);
-  const nextId = useRef(0);
 
   const update = (patch: Partial<Draft>) => {
     setDraft({ ...draft, ...patch });
@@ -126,7 +128,7 @@ export function People({ profile, step, totalSteps, onComplete }: PeopleProps) {
   /** Folds the draft into the list; returns the new list, or null if the draft needs fixing. */
   const commitDraft = (): Person[] | null => {
     const editing = people.find((p) => p.id === editingId);
-    const identity = editing ?? { id: `person-${nextId.current++}`, color: nextColor(people) };
+    const identity = editing ?? { id: crypto.randomUUID(), color: nextColor(people) };
     const result = toPerson(draft, profile.age, identity);
     if (typeof result === 'string') {
       setError(result);
@@ -191,9 +193,11 @@ export function People({ profile, step, totalSteps, onComplete }: PeopleProps) {
   return (
     <section className="onboarding people-screen">
       <form className="question people" onSubmit={submit} onKeyDown={onKeyDown} noValidate>
-        <p className="question-count">
-          {step} / {totalSteps}
-        </p>
+        {step !== undefined && (
+          <p className="question-count">
+            {step} / {totalSteps}
+          </p>
+        )}
         <label className="question-text" htmlFor="person-name">
           Who has shared your journey?
         </label>

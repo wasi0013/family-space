@@ -6,9 +6,10 @@ interface SceneProps {
   profile: Profile;
   people: readonly Person[];
   initialAge?: number;
+  onEditPeople: () => void;
 }
 
-export function Scene({ profile, people, initialAge }: SceneProps) {
+export function Scene({ profile, people, initialAge, onEditPeople }: SceneProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const ageRef = useRef<HTMLSpanElement>(null);
 
@@ -44,6 +45,9 @@ export function Scene({ profile, people, initialAge }: SceneProps) {
           0
         </span>
       </div>
+      <button type="button" className="scene-action" onClick={onEditPeople}>
+        Edit people
+      </button>
       <p className="controls-hint">
         <kbd>Space</kbd> pause · <kbd>←</kbd> <kbd>→</kbd> step a year
       </p>
