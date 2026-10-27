@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type RefObject } from 'react';
+import { Keep } from '../keep/Keep';
 import type { Person, Profile } from '../model';
 import { SceneRenderer } from './SceneRenderer';
 
@@ -9,10 +10,12 @@ interface SceneProps {
   profile: Profile;
   people: readonly Person[];
   initialAge?: number;
+  /** The night sky behind the scene, composed into exported images and videos. */
+  skyRef: RefObject<HTMLCanvasElement | null>;
   onEditPeople: () => void;
 }
 
-export function Scene({ profile, people, initialAge, onEditPeople }: SceneProps) {
+export function Scene({ profile, people, initialAge, skyRef, onEditPeople }: SceneProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const ageRef = useRef<HTMLSpanElement>(null);
   const rendererRef = useRef<SceneRenderer | null>(null);
@@ -100,9 +103,12 @@ export function Scene({ profile, people, initialAge, onEditPeople }: SceneProps)
           </svg>
         </button>
       </div>
-      <button type="button" className="scene-action" onClick={onEditPeople}>
-        Edit people
-      </button>
+      <div className="scene-actions">
+        <Keep profile={profile} skyRef={skyRef} sceneRef={canvasRef} rendererRef={rendererRef} />
+        <button type="button" className="scene-action" onClick={onEditPeople}>
+          Edit people
+        </button>
+      </div>
       <p className="controls-hint">
         <kbd>Space</kbd> pause · <kbd>←</kbd> <kbd>→</kbd> step a year · drag to travel
       </p>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { Person, Profile } from './model';
 import { Scene } from './scene/Scene';
 import { samplePeople } from './scene/samplePeople';
@@ -32,6 +32,7 @@ function initialPhase(): Phase {
 
 export function App() {
   const [phase, setPhase] = useState<Phase>(initialPhase);
+  const skyRef = useRef<HTMLCanvasElement>(null);
   const [profile, setProfile] = useState<Profile | null>(DEMO_PROFILE ?? SAVED?.profile ?? null);
   const [people, setPeople] = useState<Person[] | null>(() =>
     params.has('demo')
@@ -44,7 +45,7 @@ export function App() {
 
   return (
     <main className="app">
-      <NightSky />
+      <NightSky canvasRef={skyRef} />
       {phase === 'title' && (
         <TitleScreen
           returning={profile !== null}
@@ -87,6 +88,7 @@ export function App() {
           profile={profile}
           people={people ?? []}
           initialAge={SEEK_AGE}
+          skyRef={skyRef}
           onEditPeople={() => setPhase('people')}
         />
       )}

@@ -60,6 +60,8 @@ export class SceneRenderer {
   private driftSpeed = 0;
   private playing = false;
   private autoplay: boolean;
+  /** Whether the self star plays its ignition; a seeked scene opens already lit. */
+  private igniting: boolean;
   private igniteStart = -1;
   private lastNow = -1;
   private shownAge = -1;
@@ -76,6 +78,7 @@ export class SceneRenderer {
     this.ctx = ctx;
     this.endAge = settleAge(people, profile.age);
     this.autoplay = options.initialAge === undefined;
+    this.igniting = options.initialAge === undefined;
     this.age = options.initialAge === undefined ? 0 : Math.min(this.endAge, Math.max(0, options.initialAge));
   }
 
@@ -101,6 +104,23 @@ export class SceneRenderer {
   /** Lets the caller size a scrub gesture to the whole life. */
   get lifespan(): number {
     return this.endAge;
+  }
+
+  /** True once the life has played through and every departure has settled. */
+  get finished(): boolean {
+    return this.age >= this.endAge && !this.playing && !this.autoplay;
+  }
+
+  /** Starts the journey over from birth, with the star igniting again, as for a recording. */
+  restart() {
+    this.age = 0;
+    this.idleSeconds = 0;
+    this.playing = false;
+    this.autoplay = true;
+    this.igniting = true;
+    this.igniteStart = -1;
+    this.reportAge();
+    this.reportPlaying();
   }
 
   togglePlay() {
@@ -153,7 +173,7 @@ export class SceneRenderer {
         this.playing = true;
       }
       this.advance(dt);
-      const ig = this.options.initialAge === undefined ? ignition(sinceIgnite) : SETTLED;
+      const ig = this.igniting ? ignition(sinceIgnite) : SETTLED;
       this.draw(now / 1000, ig);
       this.frameId = requestAnimationFrame(tick);
     };

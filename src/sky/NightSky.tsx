@@ -1,14 +1,13 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, type RefObject } from 'react';
 import { SkyRenderer } from './SkyRenderer';
 
-export function NightSky() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-
+/** `canvasRef` lets the journey recorder read the sky it composes into each video frame. */
+export function NightSky({ canvasRef }: { canvasRef: RefObject<HTMLCanvasElement | null> }) {
   useEffect(() => {
     const renderer = new SkyRenderer(canvasRef.current!);
     renderer.start();
     return () => renderer.dispose();
-  }, []);
+  }, [canvasRef]);
 
   return <canvas ref={canvasRef} className="sky" aria-hidden="true" />;
 }
