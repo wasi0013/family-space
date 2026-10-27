@@ -221,10 +221,20 @@ export function novaProgress(person: Person, age: number): number | null {
   return t >= 0 && t <= 1 ? t : null;
 }
 
-/** How much of a nova's remnant nebula has formed, 0 → 1, staying once it has. */
+/** How long a nova's nebula takes to fade away completely, in years after the burst. */
+export const REMNANT_YEARS = 20;
+
+/**
+ * How visible a nova's remnant nebula is, 0 → 1: it forms as the burst ends, then thins slowly
+ * over the years until it is gone, leaving only their star.
+ */
 export function remnantAt(person: Person, age: number): number {
   if (person.bond !== 'permanent' || person.departAge === null) return 0;
-  return smoothstep(0.25, 1, (age - person.departAge - ASCEND_YEARS) / NOVA_YEARS);
+  const t = age - person.departAge - ASCEND_YEARS;
+  const formed = smoothstep(0.25, 1, t / NOVA_YEARS);
+  // Fades gently at first, then more quickly toward its end, reaching zero at REMNANT_YEARS.
+  const left = 1 - clamp01((t - NOVA_YEARS) / (REMNANT_YEARS - NOVA_YEARS));
+  return formed * left * left * (3 - 2 * left);
 }
 
 /**
@@ -240,6 +250,7 @@ export function drawNova(
   remnant: number,
   seconds: number,
 ) {
+  if (progress === null && remnant <= 0.01) return;
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
   if (remnant > 0.01) {

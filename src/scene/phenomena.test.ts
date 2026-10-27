@@ -12,6 +12,7 @@ import {
   NOVA_YEARS,
   novaProgress,
   remnantAt,
+  REMNANT_YEARS,
   skyAngle,
   sparkProgress,
 } from './phenomena';
@@ -115,10 +116,24 @@ describe('grief and nova', () => {
     expect(novaProgress(friend, 22)).toBeNull();
   });
 
-  it('bursts as a nova when they reach the sky, leaving a nebula that stays', () => {
+  it('bursts as a nova when they reach the sky', () => {
     expect(novaProgress(grandma, 20 + ASCEND_YEARS - 0.01)).toBeNull();
     expect(novaProgress(grandma, 20 + ASCEND_YEARS + NOVA_YEARS / 2)).toBeCloseTo(0.5, 6);
-    expect(remnantAt(grandma, 20 + ASCEND_YEARS)).toBe(0);
-    expect(remnantAt(grandma, 60)).toBe(1);
+  });
+
+  it('leaves a nebula that thins over the years and is gone after twenty', () => {
+    const burst = 20 + ASCEND_YEARS;
+    expect(remnantAt(grandma, burst)).toBe(0);
+    expect(remnantAt(grandma, burst + NOVA_YEARS)).toBe(1);
+    expect(remnantAt(grandma, burst + 10)).toBeGreaterThan(0.3);
+    expect(remnantAt(grandma, burst + 10)).toBeLessThan(0.7);
+    expect(remnantAt(grandma, burst + REMNANT_YEARS)).toBeCloseTo(0, 9);
+    expect(remnantAt(grandma, burst + 40)).toBe(0);
+    let previous = 1;
+    for (let age = burst + NOVA_YEARS; age <= burst + REMNANT_YEARS; age += 0.1) {
+      const remnant = remnantAt(grandma, age);
+      expect(remnant).toBeLessThanOrEqual(previous + 1e-9);
+      previous = remnant;
+    }
   });
 });
