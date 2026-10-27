@@ -4,6 +4,13 @@ import { t } from '../i18n';
 const MAX_EXPORT_WIDTH = 1920;
 const MAX_EXPORT_HEIGHT = 1080;
 const VIDEO_FPS = 30;
+/**
+ * The address written into every export, so a shared video leads back to the app and the book
+ * behind it. Bengali exports point to the Bengali page.
+ */
+export function exportAddress(lang: string): string {
+  return lang === 'bn' ? 'familyspace.raisingthegiftedmind.com/bn' : 'familyspace.raisingthegiftedmind.com';
+}
 const VIDEO_BITRATE = 8_000_000;
 /** Preferred first: MP4 plays everywhere; Chrome and Firefox record WebM instead. */
 const VIDEO_TYPES = ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
@@ -88,11 +95,39 @@ function drawCaption(ctx: CanvasRenderingContext2D, caption: Caption, k: number)
   }
 
   ctx.textAlign = 'left';
-  ctx.font = `500 ${11 * k}px ${FONT_UI}`;
+  // The marks along the bottom are sized to the export itself, not the screen: a shared video is
+  // usually watched shrunk to a phone's width, where screen-sized text would be unreadable.
+  const m = Math.max(k, width / 1100);
+  const margin = 22 * m;
+  ctx.font = `500 ${12 * m}px ${FONT_UI}`;
   // The brand is Latin in every language, so it keeps its tracking.
-  ctx.letterSpacing = `${3.7 * k}px`;
-  ctx.fillStyle = 'rgba(220, 228, 255, 0.42)';
-  ctx.fillText('FAMILY SPACE', 16 * k, height - 18 * k);
+  ctx.letterSpacing = `${3.4 * m}px`;
+  ctx.fillStyle = 'rgba(220, 228, 255, 0.5)';
+  ctx.fillText('FAMILY SPACE', margin, height - margin);
+
+  // Opposite the brand, the address beside a small open book, as in the page's footer.
+  const address = exportAddress(t.lang);
+  ctx.textAlign = 'right';
+  ctx.letterSpacing = '0px';
+  ctx.font = `italic 300 ${17 * m}px ${FONT_DISPLAY}`;
+  ctx.fillStyle = 'rgba(240, 230, 210, 0.78)';
+  const right = width - margin;
+  const baseline = height - margin + 1 * m;
+  ctx.fillText(address, right, baseline);
+  drawBook(ctx, right - ctx.measureText(address).width - 9 * m - 17 * m, baseline - 14 * m, 17 * m);
+  ctx.restore();
+}
+
+/** The footer's open book, drawn at `size` with its top-left at (x, y). */
+function drawBook(ctx: CanvasRenderingContext2D, x: number, y: number, size: number) {
+  const s = size / 24;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(s, s);
+  ctx.strokeStyle = 'rgba(240, 230, 210, 0.78)';
+  ctx.lineWidth = 1.6;
+  ctx.lineJoin = 'round';
+  ctx.stroke(new Path2D('M12 6.5C10.2 5.2 7.6 4.6 4 4.8v12.6c3.6-.2 6.2.4 8 1.7 1.8-1.3 4.4-1.9 8-1.7V4.8c-3.6-.2-6.2.4-8 1.7Zm0 0v12.6'));
   ctx.restore();
 }
 
