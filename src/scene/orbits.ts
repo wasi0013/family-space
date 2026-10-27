@@ -8,6 +8,9 @@ export const YEARS_PER_SECOND = 0.8;
 export const ARRIVE_YEARS = 0.8;
 export const SHOOT_YEARS = 1.2;
 export const ASCEND_YEARS = 1.8;
+/** Once a memorial star settles its glow fades over these years, to a trace that stays. */
+export const HALO_FADE_YEARS = 3;
+const HALO_REST = 0.12;
 /** How long the rising thread lingers once a memorial star settles. */
 export const THREAD_FADE_YEARS = 1.5;
 
@@ -103,6 +106,8 @@ export interface BodyFrame {
   /** Set while the person is orbiting, for drawing the faint orbit path. */
   orbitRadius: number | null;
   memorial: boolean;
+  /** How much of its soft glow the star keeps, 0 → 1; a memorial's settles away. Full if unset. */
+  halo?: number;
 }
 
 export function layoutScene(
@@ -353,6 +358,8 @@ function frameBody(
     trailAlpha: settled ? 1 - clamp01((since - ASCEND_YEARS) / THREAD_FADE_YEARS) : 1,
     orbitRadius: null,
     memorial: true,
+    // Bright as it arrives, then settling into a crisp point of light among the stars.
+    halo: settled ? HALO_REST + (1 - HALO_REST) * (1 - easeInOutCubic(clamp01((since - ASCEND_YEARS) / HALO_FADE_YEARS))) : 1,
   };
 }
 

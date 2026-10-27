@@ -24,15 +24,22 @@ const ONBOARDING_STEPS = 4;
 // sample life, and `?people` or `?moments` opens that step.
 // They never read or overwrite the saved sky.
 const params = new URLSearchParams(window.location.search);
-/** `?example` opens the example life, as the title screen's link does, so it can be shared. */
+/**
+ * `/example` (or `/bn/example`) opens the example life, as the title screen's link does, so it can
+ * be shared. Older links used `?example`, which still works.
+ */
 const EXAMPLE_PARAM = 'example';
+const EXAMPLE_PATH = /^(\/bn)?\/example\/?$/;
+/** The page the address returns to when the example ends: the home page, in this language. */
+const HOME_PATH = /^\/bn(\/|$)/.test(window.location.pathname) ? '/bn/' : '/';
 const DEMO_PROFILE: Profile | null =
   params.has('demo') || params.has('people') || params.has('moments')
     ? { name: LANG === 'bn' ? 'আলিফ' : 'Alex', age: Number(params.get('demo') || params.get('people') || params.get('moments')) || 32 }
     : null;
 const SEEK_AGE = params.has('age') ? Number(params.get('age')) : undefined;
 const SAVED = DEMO_PROFILE ? null : loadSky();
-const EXAMPLE = !DEMO_PROFILE && params.has(EXAMPLE_PARAM) ? exampleSky(LANG) : null;
+const EXAMPLE =
+  !DEMO_PROFILE && (params.has(EXAMPLE_PARAM) || EXAMPLE_PATH.test(window.location.pathname)) ? exampleSky(LANG) : null;
 
 function initialPhase(): Phase {
   if (params.has('people')) return 'people';
@@ -40,14 +47,16 @@ function initialPhase(): Phase {
   return params.has('demo') || EXAMPLE ? 'journey' : 'title';
 }
 
-/** Keeps `?example` in the address while the example plays, so a reload or a shared link shows it. */
+/** Keeps `/example` in the address while the example plays, so a reload or a shared link shows it. */
 function markExample(on: boolean) {
   const url = new URL(window.location.href);
-  if (on) url.searchParams.set(EXAMPLE_PARAM, '');
-  else url.searchParams.delete(EXAMPLE_PARAM);
-  // An empty value reads better as a bare `?example`.
-  window.history.replaceState(null, '', url.href.replace(`${EXAMPLE_PARAM}=`, EXAMPLE_PARAM).replace(/[?&]$/, ''));
+  url.pathname = on ? `${HOME_PATH}example` : HOME_PATH;
+  url.searchParams.delete(EXAMPLE_PARAM);
+  window.history.replaceState(null, '', url.href);
 }
+
+// An older `?example` link settles on the address it now has.
+if (EXAMPLE && params.has(EXAMPLE_PARAM)) markExample(true);
 
 export function App() {
   const [phase, setPhase] = useState<Phase>(initialPhase);

@@ -1,5 +1,5 @@
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 
@@ -23,30 +23,50 @@ const BENGALI_HEAD: [string, string][] = [
   ],
 ];
 
+/** The example life's own page in a language: the same head, pointing at its own address. */
+function exampleHead(home: string): [string, string][] {
+  return [
+    [`<link rel="canonical" href="${SITE}${home}" />`, `<link rel="canonical" href="${SITE}${home}example" />`],
+    [`<meta property="og:url" content="${SITE}${home}" />`, `<meta property="og:url" content="${SITE}${home}example" />`],
+  ];
+}
+
+/** Every page beyond the home page, with what changes in its head. */
+const PAGES: { file: string; head: [string, string][] }[] = [
+  { file: 'bn/index.html', head: BENGALI_HEAD },
+  // Cloudflare Pages serves `example.html` at `/example`, so the example has a plain address.
+  { file: 'example.html', head: exampleHead('/') },
+  { file: 'bn/example.html', head: [...BENGALI_HEAD, ...exampleHead('/bn/')] },
+];
+
 /**
- * Writes `dist/bn/index.html`: the same app, with a Bengali page head. Link previews are read
- * from the page without running the app, so `/bn/` is what makes Bengali links preview in Bengali.
+ * Writes the other pages next to `dist/index.html`: the same app, each with its own page head.
+ * Link previews are read from the page without running the app, so `/bn/` is what makes Bengali
+ * links preview in Bengali, and `/example` what gives the example its own address.
  */
-function bengaliPage(): Plugin {
+function pages(): Plugin {
   let outDir = 'dist';
   return {
-    name: 'bengali-page',
+    name: 'pages',
     apply: 'build',
     configResolved(config) {
       outDir = resolve(config.root, config.build.outDir);
     },
     closeBundle() {
-      let html = readFileSync(resolve(outDir, 'index.html'), 'utf8');
-      for (const [english, bengali] of BENGALI_HEAD) {
-        if (!html.includes(english)) throw new Error(`bengali-page: missing "${english}" in index.html`);
-        html = html.split(english).join(bengali);
+      const home = readFileSync(resolve(outDir, 'index.html'), 'utf8');
+      for (const { file, head } of PAGES) {
+        let html = home;
+        for (const [from, to] of head) {
+          if (!html.includes(from)) throw new Error(`pages: missing "${from}" for ${file}`);
+          html = html.split(from).join(to);
+        }
+        mkdirSync(dirname(resolve(outDir, file)), { recursive: true });
+        writeFileSync(resolve(outDir, file), html);
       }
-      mkdirSync(resolve(outDir, 'bn'), { recursive: true });
-      writeFileSync(resolve(outDir, 'bn', 'index.html'), html);
     },
   };
 }
 
 export default defineConfig({
-  plugins: [react(), bengaliPage()],
+  plugins: [react(), pages()],
 });

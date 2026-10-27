@@ -131,9 +131,11 @@ export function drawBody(ctx: CanvasRenderingContext2D, frame: BodyFrame, second
   const a = frame.alpha * twinkle;
   // The glow draws in a little as the star dims, as a real one does.
   const size = frame.scale * (1 + frame.glow * 0.8) * (frame.memorial ? 1.2 : 1) * (1 - 0.18 * depth * dip);
-  glowDisc(ctx, frame.x, frame.y, 18 * size, [
-    [0, `rgba(${color}, ${0.6 * a})`],
-    [0.25, `rgba(${color}, ${0.2 * a})`],
+  // The soft glow, which a star among the departed lets go of as it settles.
+  const halo = frame.halo ?? 1;
+  glowDisc(ctx, frame.x, frame.y, 18 * size * (0.55 + 0.45 * halo), [
+    [0, `rgba(${color}, ${0.6 * a * halo})`],
+    [0.25, `rgba(${color}, ${0.2 * a * halo})`],
     [1, `rgba(${color}, 0)`],
   ]);
   if (frame.memorial) drawSpikes(ctx, frame.x, frame.y, 16 * size * twinkle, 0.9, 0.12, 0.55 * a, color);

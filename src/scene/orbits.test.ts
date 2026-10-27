@@ -5,6 +5,7 @@ import {
   ASCEND_YEARS,
   CLOSE_RANKS_YEARS,
   frameBodies,
+  HALO_FADE_YEARS,
   layoutScene,
   settleAge,
   SHOOT_YEARS,
@@ -266,5 +267,23 @@ describe('samplePeople', () => {
       expect(p.joinAge).toBeGreaterThanOrEqual(0);
       if (p.departAge !== null) expect(p.departAge).toBeGreaterThan(p.joinAge);
     }
+  });
+});
+
+describe("a departed person's star", () => {
+  const dad = person('dad', 'permanent', 0, 30);
+  const scene = layout([dad]);
+  const halo = (age: number) => frameOf(scene, 'dad', age)!.halo ?? 1;
+
+  it('arrives in its full glow, then settles into a crisp point that keeps a trace of it', () => {
+    expect(halo(30 + ASCEND_YEARS / 2)).toBe(1);
+    expect(halo(30 + ASCEND_YEARS)).toBeCloseTo(1, 6);
+    expect(halo(30 + ASCEND_YEARS + HALO_FADE_YEARS / 2)).toBeLessThan(0.7);
+    expect(halo(30 + ASCEND_YEARS + HALO_FADE_YEARS)).toBeCloseTo(0.12, 6);
+    expect(halo(80)).toBeCloseTo(0.12, 6);
+  });
+
+  it('keeps the glow of everyone still orbiting', () => {
+    expect(frameOf(layout([person('mom', 'permanent', 0, null)]), 'mom', 40)!.halo ?? 1).toBe(1);
   });
 });
