@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { t } from '../i18n';
+import { openSkyFile, type SkyFileProblem, type SkyFileResult } from '../skyFile';
 
 const TITLE = 'Family Space';
 /** Each letter's place in the title, so letters emerge one after another across both words. */
@@ -21,12 +22,18 @@ interface TitleScreenProps {
   onStartOver: () => void;
   /** Plays the example life, leaving any saved sky as it is. */
   onExample: () => void;
+  /** Plays a sky from a file someone passed on, leaving any saved sky as it is. */
+  onOpenSky: (result: SkyFileResult) => void;
+  /** Why the last shared link didn't open, if it didn't. */
+  problem: SkyFileProblem | null;
 }
 
-export function TitleScreen({ returning, onStart, onStartOver, onExample }: TitleScreenProps) {
+export function TitleScreen({ returning, onStart, onStartOver, onExample, onOpenSky, problem: linkProblem }: TitleScreenProps) {
   const [leaving, setLeaving] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [problem, setProblem] = useState(linkProblem);
   const started = useRef(false);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const leave = useCallback((then: () => void) => {
     if (started.current) return;
@@ -45,6 +52,14 @@ export function TitleScreen({ returning, onStart, onStartOver, onExample }: Titl
     return () => clearTimeout(timer);
   }, [confirming]);
 
+  // A file is read and checked here, so a damaged one is explained without leaving the title.
+  const openFile = async (file: File | undefined) => {
+    if (!file || started.current) return;
+    const result = await openSkyFile(file);
+    if ('problem' in result) setProblem(result.problem);
+    else leave(() => onOpenSky(result));
+  };
+
   const startOver = () => {
     if (confirming) leave(onStartOver);
     else setConfirming(true);
@@ -61,7 +76,17 @@ export function TitleScreen({ returning, onStart, onStartOver, onExample }: Titl
   }, [start]);
 
   return (
-    <section className={leaving ? 'title-screen is-leaving' : 'title-screen'}>
+    <section
+      className={leaving ? 'title-screen is-leaving' : 'title-screen'}
+      // A sky file dropped anywhere on the title opens like one chosen with the button.
+      onDragOver={(event) => {
+        if (event.dataTransfer.types.includes('Files')) event.preventDefault();
+      }}
+      onDrop={(event) => {
+        event.preventDefault();
+        void openFile(event.dataTransfer.files[0]);
+      }}
+    >
       {/* The brand stays in English in every language. */}
       <h1 className="title" aria-label={TITLE} lang="en">
         {WORDS.map((letters, w) => (
@@ -85,10 +110,31 @@ export function TitleScreen({ returning, onStart, onStartOver, onExample }: Titl
       <button type="button" className="see-example" onClick={() => leave(onExample)}>
         {t.seeExample} <span aria-hidden="true">→</span>
       </button>
-      {returning && (
-        <button type="button" className={confirming ? 'start-over is-confirming' : 'start-over'} onClick={startOver}>
-          {confirming ? t.startOverConfirm : t.startOver}
+      <div className="title-more">
+        <button type="button" className="start-over" onClick={() => fileRef.current?.click()}>
+          {t.openSkyFile}
         </button>
+        {returning && (
+          <button type="button" className={confirming ? 'start-over is-confirming' : 'start-over'} onClick={startOver}>
+            {confirming ? t.startOverConfirm : t.startOver}
+          </button>
+        )}
+      </div>
+      <input
+        ref={fileRef}
+        type="file"
+        accept=".json,application/json"
+        hidden
+        onChange={(event) => {
+          void openFile(event.target.files?.[0]);
+          // The same file can be chosen again after a problem is fixed.
+          event.target.value = '';
+        }}
+      />
+      {problem && (
+        <p className="open-problem" role="alert">
+          {t.openProblem(problem)}
+        </p>
       )}
       <p className="privacy-note">{t.privacy}</p>
     </section>

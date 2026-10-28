@@ -9,7 +9,18 @@ import {
 } from 'react';
 import type { Person, Profile } from '../model';
 import { t } from '../i18n';
-import { asciiDigits, EMPTY_DRAFT, isProblem, nextColor, toDraft, toPerson, type Draft, type Ending } from '../people';
+import {
+  asciiDigits,
+  EMPTY_DRAFT,
+  isProblem,
+  nextColor,
+  PERSON_NAME_MAX_LENGTH,
+  toDraft,
+  toPerson,
+  type Draft,
+  type Ending,
+} from '../people';
+import { MAX_PEOPLE } from '../skyFile';
 
 const ENDINGS: { id: Ending; label: string; withAge: boolean }[] = [
   { id: 'here', label: t.stillHere, withAge: false },
@@ -45,6 +56,10 @@ export function People({ profile, initialPeople = [], step, totalSteps, onComple
   /** Folds the draft into the list; returns the new list, or null if the draft needs fixing. */
   const commitDraft = (): Person[] | null => {
     const editing = people.find((p) => p.id === editingId);
+    if (!editing && people.length >= MAX_PEOPLE) {
+      setError(t.peopleFull(MAX_PEOPLE));
+      return null;
+    }
     const identity = editing ?? { id: crypto.randomUUID(), color: nextColor(people) };
     const result = toPerson(draft, profile.age, identity);
     if (isProblem(result)) {
@@ -129,7 +144,7 @@ export function People({ profile, initialPeople = [], step, totalSteps, onComple
           placeholder={people.length ? t.someoneElse : t.theirName}
           autoComplete="off"
           spellCheck={false}
-          maxLength={24}
+          maxLength={PERSON_NAME_MAX_LENGTH}
           autoFocus
           aria-invalid={error ? true : undefined}
           aria-describedby="people-hint"

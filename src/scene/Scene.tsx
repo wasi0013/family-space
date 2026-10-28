@@ -24,10 +24,15 @@ interface SceneProps {
   onRemember: (personId: string, memory: string) => void;
   /** Saves a moment's note; an empty string removes it. */
   onNote: (momentId: string, note: string) => void;
-  /** Set while watching the example life: starts a sky of your own from it. */
-  onMakeItYours?: () => void;
-  /** Set when starting from the example would replace a saved sky, so it asks first. */
+  /**
+   * Set while watching a sky that isn't yours, the example or one shared with you: the way to
+   * make it your own.
+   */
+  ownAction?: { label: string; onConfirm: () => void };
+  /** Set when making it your own would replace a saved sky, so it asks first. */
   replacesSaved?: boolean;
+  /** Set for a sky from a link or file, so its words are never taken for the app's own. */
+  shared?: boolean;
 }
 
 /** The star whose card is open: a person, or a moment in the constellation. */
@@ -95,8 +100,8 @@ function SkipButton({ direction, rendererRef }: { direction: -1 | 1; rendererRef
 /** How long "Make it yours" waits for its confirming second click. */
 const CONFIRM_MS = 4000;
 
-/** Starts your own sky from the example; asks once more when that would replace a saved one. */
-function MakeItYours({ confirmFirst, onConfirm }: { confirmFirst: boolean; onConfirm: () => void }) {
+/** Makes the sky being watched your own; asks once more when that would replace a saved one. */
+function OwnAction({ label, confirmFirst, onConfirm }: { label: string; confirmFirst: boolean; onConfirm: () => void }) {
   const [confirming, setConfirming] = useState(false);
 
   useEffect(() => {
@@ -111,7 +116,7 @@ function MakeItYours({ confirmFirst, onConfirm }: { confirmFirst: boolean; onCon
       className={confirming ? 'scene-action is-own is-confirming' : 'scene-action is-own'}
       onClick={() => (confirmFirst && !confirming ? setConfirming(true) : onConfirm())}
     >
-      {confirming ? t.makeItYoursConfirm : t.makeItYours}
+      {confirming ? t.makeItYoursConfirm : label}
     </button>
   );
 }
@@ -131,8 +136,9 @@ export function Scene({
   onEditMoments,
   onRemember,
   onNote,
-  onMakeItYours,
+  ownAction,
   replacesSaved = false,
+  shared = false,
 }: SceneProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const ageRef = useRef<HTMLSpanElement>(null);
@@ -280,10 +286,22 @@ export function Scene({
       </div>
       {/* While the journey plays the buttons step aside; pausing brings them back. */}
       <div className={playing ? 'scene-actions is-quiet' : 'scene-actions'}>
-        <Keep profile={profile} skyRef={skyRef} sceneRef={canvasRef} rendererRef={rendererRef} />
+        <Keep
+          profile={profile}
+          skyRef={skyRef}
+          sceneRef={canvasRef}
+          rendererRef={rendererRef}
+          own={ownAction ? undefined : { people, moments }}
+        />
         <EditMenu onEditPeople={onEditPeople} onEditMoments={onEditMoments} />
-        {onMakeItYours && <MakeItYours confirmFirst={replacesSaved} onConfirm={onMakeItYours} />}
+        {ownAction && <OwnAction label={ownAction.label} confirmFirst={replacesSaved} onConfirm={ownAction.onConfirm} />}
       </div>
+      {shared && (
+        <p className="shared-note">
+          <span className="shared-note-title">{t.sharedWithYou}</span>
+          <span>{t.sharedWords}</span>
+        </p>
+      )}
       {rememberedPerson && remembering && (
         <MemoryCard
           // A fresh card for each star, so a half-written memory never carries over.

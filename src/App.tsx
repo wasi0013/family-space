@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { exampleSky, fitToAge } from './example';
 import type { Moment, Person, Profile } from './model';
 import { LANG, t } from './i18n';
@@ -8,13 +8,18 @@ import { Moments } from './screens/Moments';
 import { Onboarding } from './screens/Onboarding';
 import { People } from './screens/People';
 import { TitleScreen } from './screens/TitleScreen';
+import { SHARE_PATH, unpackSky } from './shareLink';
+import type { SkyFileProblem, SkyFileResult } from './skyFile';
 import { NightSky } from './sky/NightSky';
 import { clearSky, loadSky, saveSky } from './storage';
 
 /** The author's home, linked quietly from the footer of every screen. */
 const HOME_URL = 'https://raisingthegiftedmind.com';
 
-type Phase = 'title' | 'onboarding' | 'people' | 'moments' | 'journey';
+/** `opening` holds the night sky alone while a shared link unpacks. */
+type Phase = 'opening' | 'title' | 'onboarding' | 'people' | 'moments' | 'journey';
+/** A sky that isn't yours, being watched: nothing is saved until it is made your own. */
+type Visit = 'example' | 'shared';
 
 /** Name and age questions, the people step, then the optional moments step. */
 const ONBOARDING_STEPS = 4;
@@ -40,18 +45,25 @@ const SEEK_AGE = params.has('age') ? Number(params.get('age')) : undefined;
 const SAVED = DEMO_PROFILE ? null : loadSky();
 const EXAMPLE =
   !DEMO_PROFILE && (params.has(EXAMPLE_PARAM) || EXAMPLE_PATH.test(window.location.pathname)) ? exampleSky(LANG) : null;
+/** `/s#…` (or `/bn/s#…`) carries a sky someone shared; it opens once unpacked. */
+const SHARED = !DEMO_PROFILE && !EXAMPLE && SHARE_PATH.test(window.location.pathname);
 
 function initialPhase(): Phase {
   if (params.has('people')) return 'people';
   if (params.has('moments')) return 'moments';
+  if (SHARED) return 'opening';
   return params.has('demo') || EXAMPLE ? 'journey' : 'title';
 }
 
-/** Keeps `/example` in the address while the example plays, so a reload or a shared link shows it. */
+/**
+ * Keeps `/example` in the address while the example plays, so a reload or a shared link shows
+ * it; anywhere else, the address returns home and lets go of any shared sky it carried.
+ */
 function markExample(on: boolean) {
   const url = new URL(window.location.href);
   url.pathname = on ? `${HOME_PATH}example` : HOME_PATH;
   url.searchParams.delete(EXAMPLE_PARAM);
+  url.hash = '';
   window.history.replaceState(null, '', url.href);
 }
 
@@ -70,32 +82,68 @@ export function App() {
   const [moments, setMoments] = useState<Moment[]>(() =>
     params.has('demo') ? sampleMoments(DEMO_PROFILE!.age, LANG) : (EXAMPLE?.moments ?? SAVED?.moments ?? []),
   );
-  // While the example plays nothing is saved; edits to it last only until "Make it yours".
-  const [example, setExample] = useState(EXAMPLE !== null);
+  // While someone else's sky plays nothing is saved; edits to it last only until it is made yours.
+  const [visit, setVisit] = useState<Visit | null>(EXAMPLE ? 'example' : null);
+  // Why the last shared link or file didn't open, said on the title screen.
+  const [openProblem, setOpenProblem] = useState<SkyFileProblem | null>(null);
   // The example's people and moments, offered as the start of a new sky once its age is known.
   const [template, setTemplate] = useState<{ people: Person[]; moments: Moment[] } | null>(null);
   // Where the moments step goes when it finishes: on into the journey for first-time onboarding.
   const [firstVisit, setFirstVisit] = useState(false);
   const persist = (next: Profile, nextPeople: Person[] | null, nextMoments: Moment[] = moments) => {
-    if (!DEMO_PROFILE && !example) saveSky({ profile: next, people: nextPeople, moments: nextMoments });
+    if (!DEMO_PROFILE && !visit) saveSky({ profile: next, people: nextPeople, moments: nextMoments });
   };
+  // Making a visited sky your own asks first when it would replace one already saved.
+  const hasSaved = useMemo(() => visit !== null && loadSky() !== null, [visit]);
+
+  const watchShared = (result: SkyFileResult) => {
+    if ('problem' in result) {
+      setOpenProblem(result.problem);
+      markExample(false);
+      setPhase('title');
+      return;
+    }
+    setOpenProblem(null);
+    setProfile(result.sky.profile);
+    setPeople(result.sky.people);
+    setMoments(result.sky.moments);
+    setVisit('shared');
+    setPhase('journey');
+  };
+
+  // A problem is said once, on the title it led to; leaving the title lets it go.
+  useEffect(() => {
+    if (phase !== 'title') setOpenProblem(null);
+  }, [phase]);
+
+  // A shared link unpacks once on arrival, and again if another is pasted over it.
+  useEffect(() => {
+    if (!SHARED) return;
+    const open = () => {
+      if (SHARE_PATH.test(window.location.pathname)) void unpackSky(window.location.hash).then(watchShared);
+    };
+    open();
+    window.addEventListener('hashchange', open);
+    return () => window.removeEventListener('hashchange', open);
+    // watchShared only sets state, so the listener need not change with it.
+  }, []);
 
   const watchExample = () => {
     const sky = exampleSky(LANG);
     setProfile(sky.profile);
     setPeople(sky.people);
     setMoments(sky.moments);
-    setExample(true);
+    setVisit('example');
     markExample(true);
     setPhase('journey');
   };
 
-  const leaveExample = () => {
+  const leaveVisit = () => {
     const saved = loadSky();
     setProfile(saved?.profile ?? null);
     setPeople(saved?.people ?? null);
     setMoments(saved?.moments ?? []);
-    setExample(false);
+    setVisit(null);
     markExample(false);
     setPhase('title');
   };
@@ -103,12 +151,20 @@ export function App() {
   // Their own sky begins with their name and age; the example's people and moments follow.
   const makeItYours = () => {
     setTemplate({ people: people ?? [], moments });
-    setExample(false);
+    setVisit(null);
     markExample(false);
     setProfile(null);
     setPeople(null);
     setMoments([]);
     setPhase('onboarding');
+  };
+
+  // A shared sky becomes yours exactly as it is, and from then on it saves like any other.
+  const keepCopy = () => {
+    if (!profile) return;
+    saveSky({ profile, people: people ?? [], moments });
+    setVisit(null);
+    markExample(false);
   };
 
   return (
@@ -127,6 +183,8 @@ export function App() {
             setPhase('onboarding');
           }}
           onExample={watchExample}
+          onOpenSky={watchShared}
+          problem={openProblem}
         />
       )}
       {phase === 'onboarding' && (
@@ -193,15 +251,22 @@ export function App() {
             setMoments(next);
             persist(profile, people, next);
           }}
-          onMakeItYours={example ? makeItYours : undefined}
-          replacesSaved={SAVED !== null}
+          ownAction={
+            visit === 'example'
+              ? { label: t.makeItYours, onConfirm: makeItYours }
+              : visit === 'shared'
+                ? { label: t.keepCopy, onConfirm: keepCopy }
+                : undefined
+          }
+          replacesSaved={hasSaved}
+          shared={visit === 'shared'}
         />
       )}
       <footer className="footer">
         {phase !== 'title' &&
-          (example ? (
-            // From the example, the brand leads back to the title and any sky of your own.
-            <button type="button" className="brand is-link" lang="en" onClick={leaveExample} aria-label={t.backToStart}>
+          (visit ? (
+            // From someone else's sky, the brand leads back to the title and any sky of your own.
+            <button type="button" className="brand is-link" lang="en" onClick={leaveVisit} aria-label={t.backToStart}>
               Family Space
             </button>
           ) : (

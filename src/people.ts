@@ -100,5 +100,7 @@ export function nextColor(people: readonly Person[]): string {
   return PERSON_COLORS.find((c) => !people.some((p) => p.color === c)) ?? PERSON_COLORS[people.length % PERSON_COLORS.length];
 }
 
+/** Longest name someone can be given in the sky; longer ones crowd their label. */
+export const PERSON_NAME_MAX_LENGTH = 24;
 /** Longest memory kept for one person: a line, not a letter. */
 export const MEMORY_MAX_LENGTH = 200;

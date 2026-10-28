@@ -31,18 +31,34 @@ function exampleHead(home: string): [string, string][] {
   ];
 }
 
+/**
+ * The page shared skies open on. The sky itself rides after the `#`, which never reaches the
+ * server, so the page is the home page kept out of search results.
+ */
+function shareHead(home: string): [string, string][] {
+  return [
+    [
+      `<link rel="canonical" href="${SITE}${home}" />`,
+      `<link rel="canonical" href="${SITE}${home}" />\n    <meta name="robots" content="noindex" />`,
+    ],
+  ];
+}
+
 /** Every page beyond the home page, with what changes in its head. */
 const PAGES: { file: string; head: [string, string][] }[] = [
   { file: 'bn/index.html', head: BENGALI_HEAD },
   // Cloudflare Pages serves `example.html` at `/example`, so the example has a plain address.
   { file: 'example.html', head: exampleHead('/') },
   { file: 'bn/example.html', head: [...BENGALI_HEAD, ...exampleHead('/bn/')] },
+  { file: 's.html', head: shareHead('/') },
+  { file: 'bn/s.html', head: [...BENGALI_HEAD, ...shareHead('/bn/')] },
 ];
 
 /**
  * Writes the other pages next to `dist/index.html`: the same app, each with its own page head.
  * Link previews are read from the page without running the app, so `/bn/` is what makes Bengali
- * links preview in Bengali, and `/example` what gives the example its own address.
+ * links preview in Bengali, `/example` what gives the example its own address, and `/s` where shared
+ * skies open.
  */
 function pages(): Plugin {
   let outDir = 'dist';

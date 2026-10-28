@@ -1,6 +1,7 @@
 import type { Moment, MomentKind, Person } from '../model';
 import type { MomentProblem } from '../moments';
 import type { DraftProblem } from '../people';
+import type { SkyFileProblem } from '../skyFile';
 
 export type Lang = 'en' | 'bn';
 
@@ -34,6 +35,15 @@ export interface Strings {
   makeItYoursConfirm: string;
   /** The brand's label while the example plays, where it leads back to the title. */
   backToStart: string;
+  /** The title screen's way in for a sky file someone passed on. */
+  openSkyFile: string;
+  /** Why a sky file or shared link wasn't opened. */
+  openProblem: (problem: SkyFileProblem) => string;
+  /** Watching someone else's sky: keeps it as your own. */
+  keepCopy: string;
+  /** Labels a sky from a link or file, whose words came from whoever sent it. */
+  sharedWithYou: string;
+  sharedWords: string;
 
   step: (n: number, total: number) => string;
   askName: string;
@@ -69,6 +79,8 @@ export interface Strings {
   editPerson: (sentence: string) => string;
   removePerson: (name: string) => string;
   problem: (problem: DraftProblem) => string;
+  /** Said when someone tries to add one person more than a sky can hold. */
+  peopleFull: (max: number) => string;
   /** Short span for the chips, such as "birth–8 ✦". */
   lifeSpan: (person: Person) => string;
   /** A full sentence about someone, for screen readers. */
@@ -100,6 +112,22 @@ export interface Strings {
   savingImage: string;
   imageFailed: string;
   cannotRecord: string;
+  shareLink: string;
+  shareLinkNote: string;
+  saveSkyFile: string;
+  saveSkyFileNote: string;
+  skyFileSaved: string;
+  /** Said before a link is made: who can see it, and that it can't be taken back. */
+  shareWarning: string;
+  includeWords: string;
+  copyLink: string;
+  /** On phones the link goes to the share sheet instead of the clipboard. */
+  sendLink: string;
+  linkCopied: string;
+  linkSent: string;
+  /** Shown above the link when the clipboard refuses it, so it can be copied by hand. */
+  copyThisLink: string;
+  cannotShare: string;
 
   askMoments: string;
   momentsLede: string;
@@ -119,6 +147,7 @@ export interface Strings {
   editMoment: (title: string) => string;
   removeMoment: (title: string) => string;
   momentProblem: (problem: MomentProblem) => string;
+  momentsFull: (max: number) => string;
   edit: string;
   editMoments: string;
   done: string;

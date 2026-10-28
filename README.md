@@ -79,7 +79,7 @@ On every screen, the lifeline along the bottom is the one place to travel throug
 
 ## Private by design
 
-There are no accounts, no backend and no tracking in the code. Everything you enter stays in your browser's local storage and is never sent anywhere. Videos and images you export are made on your own device.
+There are no accounts, no backend and no tracking in the code. Everything you enter stays in your browser's local storage and is never sent anywhere. Videos, images and sky files you export are made on your own device, and a shared link carries the sky itself rather than a pointer to a copy on a server.
 
 ## Controls
 
@@ -93,6 +93,14 @@ There are no accounts, no backend and no tracking in the code. Everything you en
 | Remember someone | Click their star | Tap their star |
 
 **Keep** records the journey as a video, ending on a card with the site's address, or saves the moment as an image. **Make it yours** turns the example life into a starting point for your own.
+
+## Share a sky
+
+**Keep → Share a link** packs your whole sky into the link itself, after the `#`. Browsers never send that part to any server, so the sky travels only between the people who pass the link along. Whoever opens it watches a copy: nothing is saved in their browser until they choose **Keep a copy**, and nothing they change reaches yours. You can leave out memories and notes, which also makes the link shorter.
+
+**Keep → Save the sky file** downloads the same sky as a JSON file, for a backup or for another device. **Open a sky file** on the title screen, or a file dropped onto it, opens one.
+
+Links and files from someone else are treated as untrusted data. They are size-capped before they are unpacked, checked field by field, rebuilt from only the fields a sky has, and shown as plain text. The site also sends a strict Content Security Policy ([`public/_headers`](public/_headers)), so the page cannot load or send anything beyond its own files.
 
 ## Getting started
 
@@ -131,9 +139,11 @@ Family Space is a static React and TypeScript app built with Vite. It draws on t
 src/
 ├── scene/     the solar system: orbits and comets, the star's life, phenomena, the lifeline
 ├── sky/       the night sky, painted once into layers; only twinkling stars redraw while it holds still
-├── keep/      video recording and image export
+├── keep/      video recording, image export, and sharing
 ├── screens/   the title screen and the questions
 ├── i18n/      every word the app shows
+├── skyFile.ts the sky as a file, and the strict reading of one from someone else
+├── shareLink.ts a sky carried inside a link
 └── example.ts the example life
 ```
 
@@ -146,7 +156,7 @@ A few details worth a look:
 
 ## Deploying
 
-The build is a folder of static files, so any static host works. The site runs on Cloudflare Pages with the build command `pnpm build`, the output directory `dist`, and `NODE_VERSION=22`. The build also writes `example.html`, so the example life has its own address and link preview.
+The build is a folder of static files, so any static host works. The site runs on Cloudflare Pages with the build command `pnpm build`, the output directory `dist`, and `NODE_VERSION=22`. The build also writes `example.html` and `s.html`, so the example life and shared skies have their own addresses. Cloudflare Pages reads the security headers from `public/_headers`; on another host, set the same headers there.
 
 ## Contributing
 

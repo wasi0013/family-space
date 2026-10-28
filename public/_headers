@@ -1,0 +1,11 @@
+# Cloudflare Pages response headers.
+#
+# The app loads nothing but its own files and talks to no one, so the browser is told to refuse
+# everything else: a script or style from another site, a request to another site, or this site
+# shown inside someone else's frame. Exported images and videos are made as blob: URLs on the device.
+/*
+  Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Cross-Origin-Opener-Policy: same-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()

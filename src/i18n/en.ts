@@ -20,6 +20,24 @@ export const en: Strings = {
   makeItYours: 'Make it yours',
   makeItYoursConfirm: 'Replace your sky?',
   backToStart: 'Family Space: back to the start',
+  openSkyFile: 'Open a sky file',
+  openProblem: (problem) => {
+    switch (problem) {
+      case 'tooLarge':
+        return 'That sky is far larger than any Family Space sky, so it wasn’t opened.';
+      case 'notSky':
+        return 'That isn’t a Family Space sky.';
+      case 'newer':
+        return 'That sky comes from a newer Family Space. Reload the page and try again.';
+      case 'damaged':
+        return 'That sky seems to have been damaged on its way here, so it wasn’t opened.';
+      case 'oldBrowser':
+        return 'This browser is too old to open a shared sky. An up-to-date browser can.';
+    }
+  },
+  keepCopy: 'Keep a copy',
+  sharedWithYou: 'A sky shared with you',
+  sharedWords: 'Its words are the sender’s, not Family Space’s.',
 
   step: (n, total) => `${n} / ${total}`,
   askName: 'What should we call you?',
@@ -66,6 +84,7 @@ export const en: Strings = {
         return `Enter the age they ${problem.ending === 'star' ? 'became a star' : 'drifted away'}, from ${problem.from} to ${problem.max}.`;
     }
   },
+  peopleFull: (max) => `A sky holds up to ${max} people.`,
   lifeSpan: (p) => {
     const from = p.joinAge === 0 ? 'birth' : p.joinAge;
     if (p.departAge === null) return `${from}–now${p.bond === 'temporary' ? ' ☄' : ''}`;
@@ -108,6 +127,20 @@ export const en: Strings = {
   savingImage: 'Saving this moment…',
   imageFailed: 'Couldn’t save the image',
   cannotRecord: 'This browser can’t record video',
+  shareLink: 'Share a link',
+  shareLinkNote: 'Anyone with it can watch this sky',
+  saveSkyFile: 'Save the sky file',
+  saveSkyFileNote: 'A copy to keep, or to open elsewhere',
+  skyFileSaved: 'Sky file saved',
+  shareWarning:
+    'Anyone with this link can see every name and age in your sky. It’s a copy of the sky as it is now: later changes won’t reach it, and once sent it can’t be taken back.',
+  includeWords: 'Include memories and notes',
+  copyLink: 'Copy link',
+  sendLink: 'Share link',
+  linkCopied: 'Link copied',
+  linkSent: 'Link shared',
+  copyThisLink: 'Copy this link',
+  cannotShare: 'Something in this sky can’t be shared',
 
   askMoments: 'Which moments changed your sky?',
   momentsLede: 'A move, a milestone, a love, a hard year.',
@@ -127,6 +160,7 @@ export const en: Strings = {
   removeMoment: (title) => `Remove ${title}`,
   momentProblem: (problem) =>
     problem.kind === 'title' ? 'Say what happened in a few words.' : `Enter your age then, from 0 to ${problem.max}.`,
+  momentsFull: (max) => `A sky holds up to ${max} moments.`,
   edit: 'Edit',
   editMoments: 'Moments',
   done: 'Done',

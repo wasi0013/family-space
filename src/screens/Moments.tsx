@@ -14,6 +14,7 @@ import {
   type MomentDraft,
 } from '../moments';
 import { asciiDigits } from '../people';
+import { MAX_MOMENTS } from '../skyFile';
 
 interface MomentsProps {
   profile: Profile;
@@ -53,6 +54,10 @@ export function Moments({ profile, initialMoments = [], step, totalSteps, onComp
   /** Folds the draft into the list; returns the new list, or null if the draft needs fixing. */
   const commitDraft = (): Moment[] | null => {
     const editing = moments.find((m) => m.id === editingId);
+    if (!editing && moments.length >= MAX_MOMENTS) {
+      setError(t.momentsFull(MAX_MOMENTS));
+      return null;
+    }
     const result = toMoment(draft, profile.age, editing ?? { id: crypto.randomUUID() });
     if (isMomentProblem(result)) {
       setError(t.momentProblem(result));

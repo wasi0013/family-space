@@ -40,6 +40,24 @@ export const bn: Strings = {
   makeItYours: 'নিজের মতো সাজান',
   makeItYoursConfirm: 'আগের আকাশ বদলাবেন?',
   backToStart: 'Family Space: শুরুতে ফিরে যান',
+  openSkyFile: 'আকাশের ফাইল খুলুন',
+  openProblem: (problem) => {
+    switch (problem) {
+      case 'tooLarge':
+        return 'আকাশটি যেকোনো Family Space আকাশের চেয়ে অনেক বড়, তাই খোলা হয়নি।';
+      case 'notSky':
+        return 'এটি Family Space-এর কোনো আকাশ নয়।';
+      case 'newer':
+        return 'আকাশটি Family Space-এর নতুন সংস্করণ থেকে এসেছে। পেজটি রিলোড করে আবার চেষ্টা করুন।';
+      case 'damaged':
+        return 'আসার পথে আকাশটি নষ্ট হয়ে গেছে বলে মনে হচ্ছে, তাই খোলা হয়নি।';
+      case 'oldBrowser':
+        return 'এই ব্রাউজারটি পুরোনো, তাই শেয়ার করা আকাশ খুলতে পারে না। হালনাগাদ কোনো ব্রাউজারে খুলুন।';
+    }
+  },
+  keepCopy: 'একটি কপি রাখুন',
+  sharedWithYou: 'আপনার সাথে শেয়ার করা একটি আকাশ',
+  sharedWords: 'এর লেখাগুলো যিনি পাঠিয়েছেন তাঁর, Family Space-এর নয়।',
 
   step: (n, total) => `${num(n)} / ${num(total)}`,
   askName: 'আপনাকে কী নামে ডাকব?',
@@ -86,6 +104,7 @@ export const bn: Strings = {
         return `কত বছর বয়সে ${left(problem.ending)}, তা ${num(problem.from)} থেকে ${num(problem.max)}-এর মধ্যে লিখুন।`;
     }
   },
+  peopleFull: (max) => `একটি আকাশে সর্বোচ্চ ${num(max)} জন মানুষ রাখা যায়।`,
   lifeSpan: (p) => {
     const from = p.joinAge === 0 ? 'জন্ম' : num(p.joinAge);
     if (p.departAge === null) return `${from}–এখন${p.bond === 'temporary' ? ' ☄' : ''}`;
@@ -131,6 +150,20 @@ export const bn: Strings = {
   savingImage: 'মুহূর্তটি সংরক্ষণ হচ্ছে…',
   imageFailed: 'ছবিটি সংরক্ষণ করা যায়নি',
   cannotRecord: 'এই ব্রাউজারে ভিডিও রেকর্ড করা যায় না',
+  shareLink: 'লিংক শেয়ার করুন',
+  shareLinkNote: 'লিংকটি যাঁর কাছে থাকবে, তিনিই আকাশটি দেখতে পারবেন',
+  saveSkyFile: 'আকাশের ফাইল রাখুন',
+  saveSkyFileNote: 'নিজের কাছে রাখার, বা অন্য কোথাও খোলার জন্য একটি কপি',
+  skyFileSaved: 'আকাশের ফাইল সংরক্ষিত হয়েছে',
+  shareWarning:
+    'এই লিংক যাঁর কাছে থাকবে, তিনি আপনার আকাশের সব নাম ও বয়স দেখতে পারবেন। এটি এখনকার আকাশের একটি কপি: পরে কিছু বদলালে তা এতে পৌঁছাবে না, আর একবার পাঠালে ফিরিয়ে নেওয়া যায় না।',
+  includeWords: 'স্মৃতি ও নোটগুলোও দিন',
+  copyLink: 'লিংক কপি করুন',
+  sendLink: 'লিংক শেয়ার করুন',
+  linkCopied: 'লিংক কপি হয়েছে',
+  linkSent: 'লিংক শেয়ার হয়েছে',
+  copyThisLink: 'এই লিংকটি কপি করুন',
+  cannotShare: 'এই আকাশের কিছু অংশ শেয়ার করা যাচ্ছে না',
 
   askMoments: 'কোন মুহূর্তগুলো আপনার আকাশ বদলে দিয়েছিল?',
   momentsLede: 'নতুন ঠিকানা, কোনো অর্জন, ভালোবাসা, কিংবা কঠিন একটি বছর।',
@@ -152,6 +185,7 @@ export const bn: Strings = {
     problem.kind === 'title'
       ? 'কী ঘটেছিল, কয়েকটি শব্দে লিখুন।'
       : `তখন আপনার বয়স কত ছিল, তা ${num(0)} থেকে ${num(problem.max)}-এর মধ্যে লিখুন।`,
+  momentsFull: (max) => `একটি আকাশে সর্বোচ্চ ${num(max)}টি মুহূর্ত রাখা যায়।`,
   edit: 'সম্পাদনা',
   editMoments: 'মুহূর্তগুলো',
   done: 'শেষ',

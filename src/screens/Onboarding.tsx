@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { t } from '../i18n';
 import type { Profile } from '../model';
 import { asciiDigits } from '../people';
+import { PROFILE_NAME_MAX_LENGTH } from '../skyFile';
 
 const STEPS = [
   {
@@ -10,7 +11,7 @@ const STEPS = [
     placeholder: t.namePlaceholder,
     inputMode: 'text',
     autoComplete: 'given-name',
-    maxLength: 40,
+    maxLength: PROFILE_NAME_MAX_LENGTH,
   },
   {
     id: 'age',
