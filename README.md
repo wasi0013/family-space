@@ -79,7 +79,7 @@ On every screen, the lifeline along the bottom is the one place to travel throug
 
 ## Private by design
 
-There are no accounts, no backend and no tracking in the code. Everything you enter stays in your browser's local storage and is never sent anywhere. Videos, images and sky files you export are made on your own device, and a shared link carries the sky itself rather than a pointer to a copy on a server.
+There are no accounts, no backend and no tracking in the code. The hosted site counts visits with Cloudflare Web Analytics, which uses no cookies and reports only the page's path, never the part of a shared link that carries a sky. Everything you enter stays in your browser's local storage and is never sent anywhere. Videos, images and sky files you export are made on your own device, and a shared link carries the sky itself rather than a pointer to a copy on a server.
 
 ## Controls
 
@@ -100,7 +100,7 @@ There are no accounts, no backend and no tracking in the code. Everything you en
 
 **Keep → Save the sky file** downloads the same sky as a JSON file, for a backup or for another device. **Open a sky file** on the title screen, or a file dropped onto it, opens one.
 
-Links and files from someone else are treated as untrusted data. They are size-capped before they are unpacked, checked field by field, rebuilt from only the fields a sky has, and shown as plain text. The site also sends a strict Content Security Policy ([`public/_headers`](public/_headers)), so the page cannot load or send anything beyond its own files.
+Links and files from someone else are treated as untrusted data. They are size-capped before they are unpacked, checked field by field, rebuilt from only the fields a sky has, and shown as plain text. The site also sends a strict Content Security Policy ([`public/_headers`](public/_headers)), so the page cannot load or send anything beyond its own files and Cloudflare's visit counter.
 
 ## Getting started
 

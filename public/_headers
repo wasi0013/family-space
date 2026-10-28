@@ -3,8 +3,12 @@
 # The app loads nothing but its own files and talks to no one, so the browser is told to refuse
 # everything else: a script or style from another site, a request to another site, or this site
 # shown inside someone else's frame. Exported images and videos are made as blob: URLs on the device.
+#
+# The one exception is Cloudflare Web Analytics, which Cloudflare adds to each page to count
+# visits. Its beacon strips the query and the `#` from the address it reports, so a shared sky,
+# which rides after the `#`, never reaches it.
 /*
-  Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests
+  Content-Security-Policy: default-src 'none'; script-src 'self' https://static.cloudflareinsights.com; style-src 'self'; font-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' https://cloudflareinsights.com; manifest-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests
   X-Frame-Options: DENY
   X-Content-Type-Options: nosniff
   Cross-Origin-Opener-Policy: same-origin
